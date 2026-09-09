@@ -1,4 +1,4 @@
-﻿# DUCKScripts - AQW Multi-Client Ultra & Army Framework
+# DUCKScripts - AQW Multi-Client Ultra & Army Framework
 
 **DUCKScripts** is a distributed, high-performance multi-client automation framework for **AdventureQuest Worlds (AQW)** built on the **Skua** botting client. It coordinates 4 to 7 concurrent game clients through local filesystem lockstep signals to take down every daily, weekly, and challenge Ultra boss with 100% raid reliability and zero user intervention.
 
@@ -44,15 +44,14 @@ DUCKScripts/
 │   ├── UltraDageDUCK.cs        # Ultra Dage (dynamic decay timing, alternating taunts)
 │   ├── UltraSpeakerDUCK.cs     # Ultra Speaker (zone movement, truth/listen packet detection)
 │   ├── UltraGramielDUCK.cs     # Ultra Gramiel (phase 1 & 2 crystal packet detection)
-│   ├── Dailies/                # Ultra Ezrajal, Warden, Engineer, Tyndarius
+│   ├── Dailies/                # Ultra Ezrajal, Warden, Engineer, Tyndarius, Kala
 │   ├── SevenPlayerUltras/      # IceWing, Astral Empyrean, Kathool, Lich Lord, The Beast, etc.
-│   └── VoidBosses/             # Void Dailies (Xyfrag, Nightbane, Flibbi, Nerfkitten)
-├── how/                        # Comprehensive architectural documentation
-│   ├── ultra_framework_guide.txt # Master 1,800+ line architectural manual (v4.0)
-│   └── ...                     # In-depth boss mechanics, diff reports, and skillset guides
+│   ├── VoidBosses/             # Void Dailies (Xyfrag, Nightbane, Flibbi, Nerfkitten)
+│   └── Extras/                 # Repeatable army farming (ArmyPrismatasGoldFarmDUCK)
 ├── Tools/                      # Army utility scripts (TurretDUCK, Butlerv4DUCK)
-├── Army/                       # Continuous army farming scripts
-├── SkuaCompileTester/          # Standalone Roslyn compilation test project
+├── BISEnhancements.cs          # Dynamic Best-in-Slot Forge enhancement manager
+├── bis_enhancements.json       # Database of class Forge enhancements
+├── EditSkuaConfig.py           # Script options management utility
 └── .agents/                    # Specialized AI agent skills
     └── skills/
         ├── duck-ultra-scripting/ # Script authoring rules, recipes, and checklists
