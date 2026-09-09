@@ -1,0 +1,24 @@
+# ==============================================================================
+# DUCKScripts / Customv2 Git Ignore Rules
+# ==============================================================================
+
+# Runtime Logs
+Logs/*.log
+*.log
+
+# Compiler, Roslyn, & Build Artifacts
+SkuaCompileTester/bin/
+SkuaCompileTester/obj/
+bin/
+obj/
+
+# Multi-Client Army Lockstep Sync Files
+*.sync
+*.tmp
+*.bak
+
+# IDE & OS Files
+.vs/
+.vscode/
+Thumbs.db
+[Dd]esktop.ini

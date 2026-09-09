@@ -1,0 +1,168 @@
+====================================================================================================
+                        LEGION DAILIES - CHALLENGE BOSSES & QUEST BREAKDOWN
+====================================================================================================
+Author: Antigravity AI Pair Programmer
+Generated: 2026-08-26
+Purpose: Comprehensive technical breakdown of all 5 Legion Daily Quests rewarding Lineage of Devastation,
+         their challenge bosses, maps, cells, required unbanked items, auxiliary drops, and mechanics.
+====================================================================================================
+
+TABLE OF CONTENTS
+-----------------
+1. OVERVIEW & REWARD TOKENOMICS (LINEAGE OF DEVASTATION)
+2. ACCEPTANCE PREREQUISITES ("LEGION PROMOTION")
+3. QUEST 1674: LEGION LICH LORD (FROZENLAIR)
+4. QUEST 1675: THE BEAST (SEVENCIRCLESWAR)
+5. QUEST 1676: DEVASTATOR DEIMOS (DEIMOS)
+6. QUEST 1677: GOD OF THE DEPTHS / KATHOOL (KATHOOLDEPTHS)
+7. QUEST 1678: DAGE THE DARK LORD / ULTRA DAGE (ULTRADAGE)
+8. 7-PLAYER & 4-PLAYER PARTY COMPOSITION MATRIX
+
+
+====================================================================================================
+1. OVERVIEW & REWARD TOKENOMICS (LINEAGE OF DEVASTATION)
+====================================================================================================
+The Legion Daily Boss system comprises five distinct challenge encounters designed to award the
+coveted endgame AC-tagged crafting resource:
+    - Item Name: "Lineage of Devastation"
+    - Item Type: AC Drop / Resource
+    - Max Stack: 1000
+
+Collecting Lineage of Devastation enables players to craft and unlock pinnacle Legion merge shop items,
+such as "Void Vigilante of the Legion", Legion dark caster equipment, and unique cosmetic armor sets.
+By running all 5 dailies every day, an army generates 5 Lineage of Devastation per account daily.
+
+
+====================================================================================================
+2. ACCEPTANCE PREREQUISITES ("LEGION PROMOTION")
+====================================================================================================
+All 5 Legion Challenge Quests require the player to possess the specific access token:
+    - Required Item: "Legion Promotion"
+    - Location: Inventory or Bank (Auto-unbanked by all DUCK scripts)
+    - Function: Acts as the quest unlocking key.
+
+Every DUCK challenge script automatically inspects the Bank and moves "Legion Promotion" to the
+active Inventory prior to quest acceptance.
+
+
+====================================================================================================
+3. QUEST 1674: LEGION LICH LORD
+====================================================================================================
+- Quest ID: 1674 ("Lineage of Devastation: Legion Lich Lord")
+- Map Name: frozenlair
+- Boss Cell: r3
+- Boss Pad: Left
+- Boss Name: "Legion Lich Lord" (Map ID 1)
+- Boss HP: High HP single-target challenge encounter
+- Drops:
+    * "Lineage of Devastation" (Quest Turn-in Reward)
+    * "Sapphire Orb" (Monster Drop)
+- Army Size: 7 Players
+- Mechanics & Execution:
+    * Pure sustained DPS burn.
+    * No counter-attack reflect or wipe packets.
+    * Runs standard 7-man IceWing composition (LR/KE, SC, AP, LOO, VDK, Bard, Slot 7 DPS).
+    * Auto-accepts AC drops.
+
+
+====================================================================================================
+4. QUEST 1675: THE BEAST
+====================================================================================================
+- Quest ID: 1675 ("Lineage of Devastation: The Beast")
+- Map Name: sevencircleswar
+- Boss Cell: r17
+- Boss Pad: Left
+- Boss Name: "The Beast" (Map ID 1)
+- Boss HP: Multi-million HP challenge boss
+- Drops:
+    * "Lineage of Devastation" (Quest Turn-in Reward)
+    * "Beast Soul" (Monster Drop)
+- Army Size: 7 Players
+- Mechanics & Execution:
+    * High auto-attack single-target burst.
+    * ArchPaladin and Lord of Order damage reduction dampens all incoming damage.
+    * Standard 7-man IceWing composition easily overpowers the encounter with zero wipe risks.
+    * Auto-accepts AC drops.
+
+
+====================================================================================================
+5. QUEST 1676: DEVASTATOR DEIMOS
+====================================================================================================
+- Quest ID: 1676 ("Lineage of Devastation: Devastator Deimos")
+- Map Name: deimos
+- Boss Cell: Enter / r1
+- Boss Pad: Spawn / Left
+- Boss Name: "Devastator Deimos" (Map ID 1)
+- Drops:
+    * "Lineage of Devastation" (Quest Turn-in Reward)
+- Army Size: 7 Players
+- Mechanics & Execution:
+    * High physical cleaves.
+    * Previously required dedicated 15s VDK taunts in v4, but under the standard 7-player DUCK
+      composition (with SC, AP, LOO, and Bard defensive stacking), Deimos deals negligible damage.
+    * Pure auto-assign beatdown; auto-accepts AC drops.
+
+
+====================================================================================================
+6. QUEST 1677: GOD OF THE DEPTHS / KATHOOL
+====================================================================================================
+- Quest IDs:
+    * 9350: Primary Ultra Daily ("The God of the Depths" / "Frenzy Feast")
+    * 1677: Legion Daily ("Lineage of Devastation: God of the Depths")
+- Map Name: kathooldepths
+- Boss Cell: r2
+- Boss Pad: Left
+- Boss Name: "God of the Depths" (Map ID 2), Eldritch Adds (Map IDs 1 & 3)
+- Drops:
+    * "Lineage of Devastation" (Quest 1677 Reward)
+    * "Soul Sand" (Quest 9350 Reward)
+    * "Sacrosanct Morsel" (Temporary Turn-in Item)
+- Army Size: 7 Players
+- Mechanics & Execution:
+    * "cannot resist" Packet Detection: Listens on "ct" packet; immediately triggers RequestAbsolutePrioritySkill(5)
+      to pop Vigil potion for charm/wipe immunity.
+    * Target Priority: Add 3 (Eldritch Eye) -> Add 1 (Tentacle) -> God of the Depths (Map ID 2).
+    * Auto-unbanks Vigil and restocks up to 1000 from shop 2322.
+    * Accepts and turns in BOTH Quest 9350 and Quest 1677 on every daily run.
+
+
+====================================================================================================
+7. QUEST 1678: DAGE THE DARK LORD / ULTRA DAGE
+====================================================================================================
+- Quest IDs:
+    * 8547: Primary Ultra Weekly ("Dage the Evil" -> 1x Legion Shard)
+    * 1678: Legion Daily ("Dage the Dark Lord" / "Escaped Dai Tenghost Souls" -> Lineage of Devastation)
+- Map Name: ultradage
+- Boss Cell: Boss / r1
+- Boss Name: "Dage the Evil" (Map ID 1)
+- Drops:
+    * "Legion Shard" (Quest 8547 Turn-in Reward)
+    * "Lineage of Devastation" (Quest 1678 Turn-in Reward)
+    * "Dage the Dark Lord Defeated" (Temp Item)
+- Army Size: 4 Players
+- Mechanics & Execution:
+    * Daily Execution Schedule: In 0AllUltrasDUCK.cs, Ultra Dage runs EVERY DAY as long as Quest 1678
+      is available (not complete).
+    * Weekly Reset Automation: When Friday weekly reset occurs, Quest 8547 becomes available and is
+      automatically accepted and completed in the exact same kill as daily Quest 1678!
+    * Special Mechanics:
+        1. Noxious Decay: Inverts heals into true self-damage; heal skills are strictly blocked.
+        2. Focus Aura Rotation: Scroll of Enrage rotated between taunters.
+        3. Scroll of Decay: Used to suppress Dage's passive life-steal.
+
+
+====================================================================================================
+8. 7-PLAYER & 4-PLAYER PARTY COMPOSITION MATRIX
+====================================================================================================
+
+Encounter             | Army | Standard Slot 1-6                              | Slot 7 Candidate Pool
+----------------------+------+------------------------------------------------+------------------------------------
+Legion Lich Lord (1674) 7-Man  Legion Revenant, SC, AP, LOO, VDK, Bard         ArchFiend, Shaman, CAve, VHL, DoT
+The Beast (1675)        7-Man  Legion Revenant, SC, AP, LOO, VDK, Bard         ArchFiend, Shaman, CAve, VHL, DoT
+Devastator Deimos (1676)7-Man  Legion Revenant, SC, AP, LOO, VDK, Bard         ArchFiend, Shaman, CAve, VHL, DoT
+God of Depths (9350+16777-Man  Legion Revenant, SC, AP, LOO, VDK, Bard         ArchFiend, Shaman, CAve, VHL, DoT
+Ultra Dage (8547+1678)  4-Man  Legion Revenant, CAve/SC, ArchPaladin, LOO      (N/A - 4-Player Ultra)
+
+====================================================================================================
+                                      END OF REPORT
+====================================================================================================

@@ -1,0 +1,63 @@
+====================================================================================================
+           ULTRA NULGATH - DUCK VS LW COMPARISON & REMEDIATION REPORT
+====================================================================================================
+Location: Scripts/Customv2/how/ultra_nulgath_duck_vs_lw_deep_dive.txt
+Target Scripts: 
+  - Scripts/UltrasLW/UltraNulgath_LW.cs
+  - Scripts/Customv2/UltrasDUCK/UltraNulgathDUCK.cs
+Boss: Ultra Nulgath (ultranulgath | Cell: Boss, Right | Blade MapID: 1 | Nulgath MapID: 2)
+
+----------------------------------------------------------------------------------------------------
+1. EXECUTIVE SUMMARY & IDENTIFIED DISCREPANCIES
+----------------------------------------------------------------------------------------------------
+An in-depth semantic audit of UltraNulgathDUCK.cs compared to UltraNulgath_LW.cs revealed that
+UltraNulgathDUCK suffered from the exact same dynamic player indexing flaw as UltraDrakathDUCK:
+
+1. HARDCODED PLAYER NUMBER TAUNT & PACKET DETECTOR ASSIGNMENTS
+   - In UltraNulgathDUCK.cs:
+       isTaunterOne = Duck.IsArmyPlayer(1);
+       isTaunter = isTaunterOne || Duck.IsArmyPlayer(4);
+       if (Duck.IsArmyPlayer(4) && !Duck.StartPacketDetector(PacketCommand, AbyssPacketText)) ...
+       bool playerFour = Duck.IsArmyPlayer(4);
+   - In DUCK, players are sorted alphabetically by username:
+     * If Lord of Order is Player 1 alphabetically, LOO is wrongly marked as `isTaunterOne`.
+     * If ArchPaladin is Player 2 alphabetically, AP is NOT marked as a taunter at all!
+     * If StoneCrusher is Player 4 alphabetically, SC starts the packet detector and tries to
+       perform the LOO Abyss taunt!
+   - Result:
+     * ArchPaladin never equips Scroll of Enrage and never performs opening or response taunts.
+     * Lord of Order never starts the Abyss packet detector and never sends Abyss taunt signals.
+     * Nulgath immediately wipes the party with un-taunted opening fury and unmitigated Abyss nukes.
+
+2. TARGETING LOGIC HARDCODED TO PLAYER INDICES (GetTargetMapId)
+   - In UltraNulgathDUCK.cs:
+       if (!Duck.IsArmyPlayer(2)) return NulgathMapId;
+   - Only `Player 2` (alphabetical) targeted the Overfiend Blade! If Player 2 was not StoneCrusher
+     or VDK, no one burned down the Blade, allowing the Blade's damage stacking to wipe the team.
+
+3. TAUNTER POTION SUPPRESSION
+   - Taunters (ArchPaladin and Lord of Order) must have `preset.CombatPotion = null` so Slot 5 is
+     100% reserved for `Scroll of Enrage` without potion casting contention.
+
+====================================================================================================
+2. CORRECT ARCHITECTURAL DESIGN IN DUCK
+====================================================================================================
+Roles, packet detection, taunts, and target selection must be mapped directly to the assigned class:
+
+1. Roles:
+   - `ArchPaladin`: `isTaunterOne = true` (Performs opening taunt @ T+5s and follow-up Abyss taunt).
+   - `Lord of Order`: `isAbyssDetector = true` (Starts packet detector, taunts @ T+2s on "Abyss!", broadcasts signal).
+   - `StoneCrusher`: Blade Damager (Targets Blade until HP <= 750,000, then attacks Nulgath).
+   - `DPS (VDK / KE)`: Helps burst Blade, then burns Nulgath.
+
+2. Combat Potions:
+   - `isTaunter = isTaunterOne || isAbyssDetector;`
+   - `if (isTaunter) preset.CombatPotion = null;`
+   - Non-taunters (SC and DPS) maintain their combat potions (`Potent Honor Potion`, `Felicitous Philtre`).
+
+3. Dynamic Target Map Selection (GetTargetMapId):
+   - `StoneCrusher`: Blade (MapID 1) if Blade HP > 750,000, else Nulgath (MapID 2).
+   - `Verus DoomKnight`: Blade while alive, else Nulgath.
+   - `King's Echo`: Blade while Blade HP > 500,000, else Nulgath.
+   - `ArchPaladin` & `Lord of Order`: Nulgath (MapID 2) exclusively.
+====================================================================================================

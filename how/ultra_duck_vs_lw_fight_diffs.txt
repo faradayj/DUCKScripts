@@ -1,0 +1,255 @@
+====================================================================================================
+      MASTER ARCHITECTURAL AUDIT & FIGHT-BY-FIGHT DIFF: ULTRASDUCK VS ULTRASLW
+====================================================================================================
+Generated: August 2026
+Scope: Comprehensive Comparative Analysis of All 11 Core Ultras, Dailies, and 7-Player Bosses
+Files Analyzed: Customv2/UltrasDUCK/* vs UltrasLW/*
+
+----------------------------------------------------------------------------------------------------
+TABLE OF CONTENTS
+----------------------------------------------------------------------------------------------------
+1. Executive Summary & Root Architecture Flaw
+2. Deep Dive: The Ultra Dage Disaster (Healing Inversion & Self-Destruction)
+3. Deep Dive: The Ultra Nulgath Breakdown (Dual-DoT Synergies & Weapon Constraints)
+4. Deep Dive: The Ultra Gramiel Breakdown (Conditional Elysium vs Forced Constraints)
+5. Deep Dive: The "ArchFiend in Slot 2" Syndrome across Dailies & Darkon
+6. Complete Boss-by-Boss Technical Comparison Matrix (All 11 Ultras + 7-Player Bosses)
+7. Architectural Blueprint: How to Permanently Fix DUCK Auto-Assignment
+
+====================================================================================================
+1. EXECUTIVE SUMMARY & ROOT ARCHITECTURE FLAW
+====================================================================================================
+The CoreLoneWolf (LW) and CoreDUCK (DUCK) frameworks represent two distinct architectural paradigms:
+
+A. LoneWolf Paradigm: "Tactical Cohesive Compositions"
+----------------------------------------------------------------------------------------------------
+In UltrasLW, every fight defines discrete `ArmyComposition` presets (e.g. Default, Stable, Reliable,
+Optimized, Pay2Win, Fast). Each composition is an indivisible 4-player tactical unit:
+- Synergies, debuffs, passives, and aggro are hand-tuned specifically for that exact combination.
+- Gear (Forge weapons, capes, helms, potions, scrolls) and skill rotations are customized precisely
+  for each class within that specific composition.
+- Crucially: Classes are NOT interchangeable between different comps. (e.g. Dragon of Time in Nulgath
+  ONLY exists in the dual-DoT comp `DOT / DOT / LR / LOO`; it NEVER pairs with StoneCrusher or ArchPaladin).
+
+B. DUCK Paradigm: "Generic Constraint Satisfaction (CSP) Pools"
+----------------------------------------------------------------------------------------------------
+In UltrasDUCK, auto-assignment was implemented using `DuckSlotRequirement[]` arrays.
+The fatal flaw occurred during the porting process:
+Instead of defining cohesive team compositions, candidate classes from completely different LW
+compositions were dumped into flat, generic candidate arrays (e.g. `Slot 1 = [DoT, AI, VDK, KE, LR]`,
+`Slot 2 = [SC, AF]`, `Slot 3 = [AP]`, `Slot 4 = [LOO]`).
+
+The Fatal Consequences of Flat Candidate Pools:
+1. Invalid Class Combinations: The CSP solver can assign `Dragon of Time` with `StoneCrusher`, `AP`,
+   and `LOO` on Ultra Dage (which instantly wipes the team due to Dage's healing inversion).
+2. Broken Synergy Pairs: In Ultra Nulgath, `Dragon of Time` is only viable when paired with a SECOND
+   Dragon of Time. Assigning a solo DoT with SC/AP/LOO destroys the kill pace and wipes on Blade/Overdrive.
+3. Inappropriate Support Substitutions: `ArchFiend` was added as a candidate in Slot 2 across multiple
+   bosses (Darkon, Tyndarius, Drakath, Engineer, Ezrajal, Warden). In 4-player ultras, ArchFiend CANNOT
+   replace StoneCrusher's 50% damage reduction, haste, and mana regeneration.
+4. Rigid Weapon Constraint Forcing: `RequiredWeaponEnhancement = "Elysium"` was attached to Slot 1 in
+   Nulgath and Gramiel, forcing Elysium onto physical classes like `VDK`, `King's Echo`, and `LR`
+   which require `Valiance` or `Dauntless`.
+
+====================================================================================================
+2. DEEP DIVE: THE ULTRA DAGE DISASTER (HEALING INVERSION & SELF-DESTRUCTION)
+====================================================================================================
+Target Files: Customv2/UltrasDUCK/UltraDageDUCK.cs vs UltrasLW/UltraDage_LW.cs
+
+The Ultra Dage Mechanic:
+- Dage casts "Noxious Decay" and "Unleashed Doom", which inverts all standard skill-based healing
+  and Heal-Over-Time (HoT) effects into fatal self/party true damage.
+- Any player who casts a skill heal (e.g. AP Skill 2 Chant of Light, SC Skill 3 Earth's Endless Song,
+  LOO Skill 2 Heartbeat, or DoT Skill 3) inflicts immediate lethal damage and causes a wipe.
+
+LoneWolf Implementation (Correct):
+- Compositions: `Default (LR/SC/AP/LOO)`, `Stable (KE/SC/AP/LOO)`, `Reliable (VDK/SC/AP/LOO)`.
+- Mandatory Weapon Enhancement: `WeaponSpecial.Health_Vamp` on ALL 4 PLAYERS.
+  (Auto-attacks trigger Health Vamp, which safely bypasses Dage's skill-healing penalty).
+- Mandatory Cape Enhancement: `CapeSpecial.Vainglory`.
+- Pruned Heal-less Skill Rotations:
+  - ArchPaladin: `{ 3, 1, 4 }` (Skill 2 Chant of Light completely disabled).
+  - StoneCrusher: `{ 2, 4, 1 }` (Skill 3 Earth's Endless Song completely disabled).
+  - Lord of Order: `{ 3, 1, 4 }` (Skill 2 Heartbeat completely disabled).
+  - Legion Revenant: `{ 3, 4, 2, 1 }`.
+
+DUCK Implementation (Completely Broken):
+- Current DageSlots in UltraDageDUCK.cs:
+  `Slot 1: [ "Dragon of Time", "King's Echo", "Legion Revenant", "Chaos Avenger" ] (Elysium)`
+  `Slot 2: [ "StoneCrusher", "Arachnomancer", "LightCaster" ]`
+  `Slot 3: [ "ArchPaladin" ]`
+  `Slot 4: [ "Lord of Order" ]`
+- Catastrophic Errors:
+  1. `Dragon of Time` in Slot 1: DoT's entire damage rotation hinges on Skill 3 (Heal/HoT). When DoT
+     casts Skill 3, it instantly self-destructs from Noxious Decay.
+  2. `Elysium` in Slot 1: Elysium triggers skill-heal procs, killing the user.
+  3. `LightCaster` in Slot 2: LightCaster has active skill heals on Skill 2 and 3, wiping the party.
+  4. Missing Global `Health_Vamp` Override: `UltraDageDUCK.cs` failed to call `ApplyDageOverrides`
+     to enforce Health Vamp on all accounts.
+
+====================================================================================================
+3. DEEP DIVE: THE ULTRA NULGATH BREAKDOWN (DUAL-DOT SYNERGIES & WEAPON CONSTRAINTS)
+====================================================================================================
+Target Files: Customv2/UltrasDUCK/UltraNulgathDUCK.cs vs UltrasLW/UltraNulgath_LW.cs
+
+LoneWolf Implementation (Correct):
+UltrasLW provides 6 distinct tactical units:
+1. Default:  `Player 1: LR  | Player 2: SC  | Player 3: AP  | Player 4: LOO` (Blade target > 750k HP)
+2. Stable:   `Player 1: KE  | Player 2: SC  | Player 3: AP  | Player 4: LOO` (Blade target > 500k HP)
+3. Reliable: `Player 1: VDK | Player 2: SC  | Player 3: AP  | Player 4: LOO` (Blade focus)
+4. Optimized: `Player 1: DoT | Player 2: DoT | Player 3: LR  | Player 4: LOO` (Dual-DoT ignores Blade!)
+5. Fast:     `Player 1: AI  | Player 2: VDK | Player 3: LR  | Player 4: LOO`
+6. Pay2Win:  `Player 1: Guardian | Player 2: SC | Player 3: LR | Player 4: LOO`
+
+DUCK Implementation (Completely Broken):
+- Current NulgathSlots in UltraNulgathDUCK.cs:
+  `Slot 1: [ "Dragon of Time", "Arcana Invoker", "Verus DoomKnight", "King's Echo", "Void Highlord", "Legion Revenant" ] (Elysium)`
+  `Slot 2: [ "StoneCrusher", "ArchFiend" ]`
+  `Slot 3: [ "ArchPaladin" ]`
+  `Slot 4: [ "Lord of Order" ]`
+- Catastrophic Errors:
+  1. Solo `Dragon of Time` in Slot 1: If Account 1 has DoT, DUCK assigns DoT to Slot 1 alongside SC,
+     AP, and LOO. But DoT on Nulgath CANNOT survive or function without the 2nd DoT to provide paired
+     true-damage burst scaling!
+  2. `RequiredWeaponEnhancement = "Elysium"`: Elysium is forced onto Slot 1. If Account 1 is assigned
+     `Verus DoomKnight`, `King's Echo`, or `Legion Revenant`, it equips Elysium instead of `Valiance`
+     or `Dauntless`, severely crippling physical damage output.
+  3. `ArchFiend` in Slot 2: ArchFiend is placed as an alternative to StoneCrusher. Without StoneCrusher's
+     `Earth's Endless Song` (+50% Endurance/Damage Reduction) and `Magnum/Magnitude`, the party gets
+     one-shot by Nulgath's Overdrive.
+
+====================================================================================================
+4. DEEP DIVE: THE ULTRA GRAMIEL BREAKDOWN (CONDITIONAL ELYSIUM VS FORCED CONSTRAINTS)
+====================================================================================================
+Target Files: Customv2/UltrasDUCK/UltraGramielDUCK.cs vs UltrasLW/UltraGramiel_LW.cs
+
+LoneWolf Implementation (Correct):
+- Default: `LR / SC / AP / LOO` (LR uses `Penitence` cape, Skill rotation `{ 3, 4, 2 }`).
+- Optimized: `Shaman / SC / AP / LOO`
+  - Shaman SPECIFICALLY requires: `Weapon = Elysium`, `Base = Wizard`, `Cape = Absolution`,
+    `Tonic = Sage Tonic`, `Elixir = Potent Malevolence`.
+- Test3 / Test4: `VDK / SC / AP / LOO` (VDK uses `Valiance` / `Dauntless`).
+
+DUCK Implementation (Broken Constraint):
+- Current GramielSlots in UltraGramielDUCK.cs:
+  `Slot 1: [ "Shaman", "Verus DoomKnight", "Legion Revenant" ] (Elysium)`
+  `Slot 2: [ "StoneCrusher", "ArchFiend" ]`
+  `Slot 3: [ "ArchPaladin" ]`
+  `Slot 4: [ "Lord of Order" ]`
+- Error:
+  - Setting `RequiredWeaponEnhancement = "Elysium"` on the entire Slot 1 forces Elysium onto `VDK` and `LR`
+    whenever Shaman is not available, breaking their weapon loadouts.
+  - `ArchFiend` in Slot 2 cannot provide the defensive mitigation needed against Gramiel's holy nukes.
+
+====================================================================================================
+5. DEEP DIVE: THE "ARCHFIEND IN SLOT 2" SYNDROME ACROSS DAILIES & DARKON
+====================================================================================================
+Across almost all 4-player DUCK scripts (`Ezrajal`, `Warden`, `Engineer`, `Tyndarius`, `Drakath`, `Darkon`),
+`ArchFiend` was added into Slot 2 as `CandidateClasses = new[] { "StoneCrusher", "ArchFiend" }`.
+
+Why this is fundamentally incorrect:
+1. StoneCrusher's Core Role in 4-Man Ultras:
+   - `StoneCrusher` provides 50% party damage reduction, massive haste buffs, continuous party mana
+     regen, and critical damage amplification.
+2. Where ArchFiend Actually Belongs:
+   - In 7-Player Ultras (e.g. `Astral`, `Kathool`, `Deimos`, `Lich Lord`, `The Beast`), `ArchFiend` is
+     an excellent 7th player DPS/debuffer alongside the full 6-player core (`LR`, `SC`, `AP`, `LOO`, `VDK`, `Bard`).
+   - In 4-Player Ultras, substituting ArchFiend for StoneCrusher leaves the party without mana regen
+     and without 50% damage reduction, resulting in team deaths on heavy ultra nukes.
+
+====================================================================================================
+6. COMPLETE BOSS-BY-BOSS TECHNICAL COMPARISON MATRIX
+====================================================================================================
+
++----------------------+-------------------------------------------+-------------------------------------------+--------------------------------------------+
+| Boss                 | UltrasLW Compositions                     | UltrasDUCK Current Slots                  | Status / Required Action                   |
++----------------------+-------------------------------------------+-------------------------------------------+--------------------------------------------+
+| Ultra Dage           | 1. Default: LR / SC / AP / LOO            | Slot 1: DoT / KE / LR / CAV (Elysium)     | ❌ CRITICAL BUG                            |
+| (ultradage)          | 2. Stable:  KE / SC / AP / LOO            | Slot 2: SC / Arachno / LC                 | - Remove DoT, CAV, LC, Arachno, Elysium    |
+|                      | 3. Reliable: VDK / SC / AP / LOO          | Slot 3: AP                                | - Restore LR / KE / VDK in Slot 1          |
+|                      | (All: Health_Vamp weapon, Vainglory cape, | Slot 4: LOO                               | - Enforce Health_Vamp & Vainglory globally |
+|                      |  stripped skill heals)                    |                                           | - Strip skill heals across all 4 classes   |
++----------------------+-------------------------------------------+-------------------------------------------+--------------------------------------------+
+| Ultra Nulgath        | 1. Default:  LR / SC / AP / LOO           | Slot 1: DoT / AI / VDK / KE / VHL / LR    | ❌ CRITICAL BUG                            |
+| (ultranulgath)       | 2. Stable:   KE / SC / AP / LOO           |         (Elysium)                         | - Remove DoT (unless in 2-DoT comp)        |
+|                      | 3. Reliable: VDK / SC / AP / LOO          | Slot 2: SC / AF                           | - Remove forced Elysium constraint         |
+|                      | 4. Optimized: DoT / DoT / LR / LOO        | Slot 3: AP                                | - Remove AF from Slot 2 (SC mandatory)    |
+|                      | 5. Fast:     AI / VDK / LR / LOO          | Slot 4: LOO                               |                                            |
+|                      | 6. P2W:      Guardian / SC / LR / LOO     |                                           |                                            |
++----------------------+-------------------------------------------+-------------------------------------------+--------------------------------------------+
+| Ultra Gramiel        | 1. Default:   LR / SC / AP / LOO          | Slot 1: Shaman / VDK / LR (Elysium)       | ⚠️ CONSTRAINT BUG                          |
+| (ultragramiel)       | 2. Optimized: Shaman / SC / AP / LOO      | Slot 2: SC / AF                           | - Remove forced Elysium from Slot 1        |
+|                      | 3. Test3:     VDK / SC / AP / LOO         | Slot 3: AP                                | - Make Elysium conditional only on Shaman  |
+|                      |                                           | Slot 4: LOO                               | - Remove AF from Slot 2 (SC mandatory)    |
++----------------------+-------------------------------------------+-------------------------------------------+--------------------------------------------+
+| Ultra Darkon         | 1. Default:   LR / SC / AP / LOO          | Slot 1: LC / VDK / KE / LR                | ⚠️ MINOR FLAW                              |
+| (ultradarkon)        | 2. Stable:    KE / SC / AP / LOO          | Slot 2: SC / AF                           | - Remove AF from Slot 2 (SC mandatory)    |
+|                      | 3. Optimized: LC / SC / AP / LOO          | Slot 3: AP                                | - Ensure Penitence / Absolution overrides  |
+|                      | 4. Reliable:  VDK / SC / AP / LOO         | Slot 4: LOO                               |                                            |
++----------------------+-------------------------------------------+-------------------------------------------+--------------------------------------------+
+| Ultra Drakath        | 1. Default:   LR / SC / AP / LOO          | Slot 1: CS / VDK / KE / VHL / LR / CAV    | ⚠️ MINOR FLAW                              |
+| (championdrakath)    | 2. Stable:    KE / SC / AP / LOO          | Slot 2: SC / AF                           | - Remove AF from Slot 2 (SC mandatory)    |
+|                      | 3. Reliable:  VDK / SC / AP / LOO         | Slot 3: AP                                | - Preserve interleaved AP/SC taunt array   |
+|                      | 4. Optimized: Chaos Slayer / SC / AP / LOO| Slot 4: LOO                               |                                            |
++----------------------+-------------------------------------------+-------------------------------------------+--------------------------------------------+
+| Ultra Tyndarius      | 1. Default:  LR / SC / AP / LOO           | Slot 1: VDK / AI / KE / VHL / LR          | ⚠️ MINOR FLAW                              |
+| (tyndarius)          | 2. Stable:   KE / SC / AP / LOO           | Slot 2: SC / AF                           | - Remove AF from Slot 2 (SC mandatory)    |
+|                      | 3. Reliable: VDK / SC / AP / LOO          | Slot 3: AP                                |                                            |
+|                      | 4. Fast:     AI / SC / AP / LOO           | Slot 4: LOO                               |                                            |
++----------------------+-------------------------------------------+-------------------------------------------+--------------------------------------------+
+| Ultra Ezrajal        | 1. Default:  LR / SC / AP / LOO           | Slot 1: VDK / KE / VHL / LR / CAV         | ⚠️ MINOR FLAW                              |
+| (ultraezrajal)       | 2. Stable:   KE / SC / AP / LOO           | Slot 2: SC / AF                           | - Remove AF from Slot 2 (SC mandatory)    |
+|                      | 3. Reliable: VDK / SC / AP / LOO          | Slot 3: AP                                |                                            |
+|                      |                                           | Slot 4: LOO                               |                                            |
++----------------------+-------------------------------------------+-------------------------------------------+--------------------------------------------+
+| Ultra Warden         | 1. Default:  LR / SC / AP / LOO           | Slot 1: VDK / KE / VHL / LR               | ⚠️ MINOR FLAW                              |
+| (warden)             | 2. Stable:   KE / SC / AP / LOO           | Slot 2: SC / AF                           | - Remove AF from Slot 2 (SC mandatory)    |
+|                      | 3. Reliable: VDK / SC / AP / LOO          | Slot 3: AP                                |                                            |
+|                      |                                           | Slot 4: LOO                               |                                            |
++----------------------+-------------------------------------------+-------------------------------------------+--------------------------------------------+
+| Ultra Engineer       | 1. Default:  LR / SC / AP / LOO           | Slot 1: VDK / KE / VHL / LR / CAV         | ⚠️ MINOR FLAW                              |
+| (ultraengineer)      | 2. Stable:   KE / SC / AP / LOO           | Slot 2: SC / AF                           | - Remove AF from Slot 2 (SC mandatory)    |
+|                      | 3. Reliable: VDK / SC / AP / LOO          | Slot 3: AP                                |                                            |
+|                      |                                           | Slot 4: LOO                               |                                            |
++----------------------+-------------------------------------------+-------------------------------------------+--------------------------------------------+
+| Ultra Speaker        | 1. Default: LR / SC / AP / LOO            | Slot 1: VDK / LR                          | ✅ MATCH                                   |
+| (ultraspeaker)       | 2. Stable:  VDK / SC / AP / LOO           | Slot 2: SC                                | - Clean & strictly isolated                |
+|                      |                                           | Slot 3: AP                                |                                            |
+|                      |                                           | Slot 4: LOO                               |                                            |
++----------------------+-------------------------------------------+-------------------------------------------+--------------------------------------------+
+| 7-Player Ultras      | Unified 7-Man Roster:                     | Slot 1: LR / KE (Taunter 1)               | ✅ EXCELLENT                               |
+| (Astral, Kathool,    | 1. LR / KE                                | Slot 2: SC (Buffer)                       | - Standardized 7-slot CSP architecture     |
+|  Deimos, Lich Lord,  | 2. SC                                     | Slot 3: AP (Debuffer)                     | - Solves 7-player auto-assignment cleanly  |
+|  The Beast, IceWing, | 3. AP                                     | Slot 4: LOO (Healer)                      |                                            |
+|  Kasuko)             | 4. LOO                                    | Slot 5: VDK (Taunter 2)                   |                                            |
+|                      | 5. VDK                                    | Slot 6: Bard (Buffer)                     |                                            |
+|                      | 6. Bard                                   | Slot 7: DPS (QC/Shaman/AF/AI/CAV/VHL/DoT) |                                            |
+|                      | 7. DPS (Shaman / AF / AI)                 |                                           |                                            |
++----------------------+-------------------------------------------+-------------------------------------------+--------------------------------------------+
+
+====================================================================================================
+7. ARCHITECTURAL BLUEPRINT: HOW TO PERMANENTLY FIX DUCK AUTO-ASSIGNMENT
+====================================================================================================
+To restore 100% tactical fidelity with LoneWolf while preserving zero-config auto-assignment:
+
+1. Clean Up 4-Man Core Roster:
+   - In all 4-player ultras:
+     - **Slot 1 (DPS / Taunter 1)**: `[ "Verus DoomKnight", "King's Echo", "Legion Revenant" ]` (and boss-specific specials like `Chaos Slayer` on Drakath, `LightCaster` on Darkon, `Shaman` on Gramiel).
+     - **Slot 2 (Buffer)**: Strictly `[ "StoneCrusher" ]` (remove `ArchFiend`).
+     - **Slot 3 (Mitigation)**: Strictly `[ "ArchPaladin" ]`.
+     - **Slot 4 (Core Buffer)**: Strictly `[ "Lord of Order" ]`.
+
+2. Boss-Specific Enhancement & Skill Override Rules:
+   - **Ultra Dage**:
+     - Global override: `preset.WeaponEnhancement = WeaponSpecial.Health_Vamp` across all 4 players.
+     - Global override: `preset.CapeEnhancement = CapeSpecial.Vainglory`.
+     - Skill rotations: Strip active heals (`AP: {3,1,4}`, `SC: {2,4,1}`, `LOO: {3,1,4}`, `LR: {3,4,2,1}`).
+   - **Ultra Gramiel**:
+     - If `preset.ClassName == "Shaman"`: set `Weapon = Elysium`, `Cape = Absolution`, `Base = Wizard`, `Tonic = Sage Tonic`.
+     - Otherwise: use default Forge/Awe enhancements.
+   - **Ultra Nulgath**:
+     - Use standard DPS priority in Slot 1 (`[ "Verus DoomKnight", "King's Echo", "Legion Revenant" ]`) without forced Elysium.
+     - (Optional): Support a dedicated Dual-DoT composition if both players own Dragon of Time.
+====================================================================================================
+                                      END OF MASTER AUDIT
+====================================================================================================

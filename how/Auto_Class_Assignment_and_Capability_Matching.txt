@@ -1,0 +1,199 @@
+================================================================================
+================================================================================
+       AUTO-ASSIGNMENT LOGIC, CAPABILITY MATCHING & ENHANCEMENT CONSISTENCY
+                     IN ULTRASV4 VS LONWOLF (ULTRASLW)
+================================================================================
+================================================================================
+
+Target Analysis Files:
+- Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraCustomClassSyncv4.cs
+- Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraEnhancementsv4.cs
+- Scripts/Customv2/Ultrasv4/DependenciesUltras/ultras_enhancements.json
+- Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreUltrav4.cs (EquipClassSync)
+- Scripts/UltrasLW/0AllUltras_LW.cs & Scripts/UltrasLW/CoreLoneWolf.cs
+
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+1. EXECUTIVE OVERVIEW
+2. HOW ULTRASV4 AUTO-ASSIGNMENT & CAPABILITY MATCHING WORKS
+   2.1 Step 1: Inventory & Bank Class Discovery
+   2.2 Step 2: Forge Weapon Enhancement Capability Probing
+   2.3 Step 3: Atomic Distributed Registration (READY Payload)
+   2.4 Step 4: Deterministic Constraint-Aware Greedy Matching Algorithm
+   2.5 Step 5: Weapon Enhancement Minimization Across Multiple Ultras
+3. WHAT LONWOLF (ULTRASLW) LACKS REGARDING AUTO-ASSIGNMENT
+   3.1 Hardcoded Username Configuration Requirement
+   3.2 Fixed Player-to-Role Mapping (No Capability Check)
+   3.3 Inability to Dynamic-Roster from a Pool of Accounts (e.g. 4 of 7)
+4. ARCHITECTURAL BLUEPRINT FOR IMPLEMENTING AUTO-ASSIGNMENT INTO ULTRASDUCK
+   4.1 Porting Capability Discovery to CoreDUCK.cs
+   4.2 Integrating Constraint-Aware Matching with ClassPresets
+   4.3 Dynamic Roster Resolution (Any 4 Connected Accounts)
+5. CONCLUSION
+
+
+================================================================================
+1. EXECUTIVE OVERVIEW
+================================================================================
+In multi-account AQW raiding across 4-to-7 accounts, accounts have unequal progression:
+- Some accounts own rare/farming-intensive classes (e.g. Bard, Verus DoomKnight,
+  Arcana Invoker, Chrono ShadowHunter).
+- Some accounts lack specific high-tier Forge enhancements (e.g. Elysium, Arcana's
+  Concerto, Dauntless).
+- Running gauntlets of 12 Ultra Bosses (`DoAllUltras`) should NOT force players to
+  re-forge weapons and swap classes repeatedly if roles can be distributed consistently.
+
+`Ultrasv4` solves this via a **Deterministic, Capability-Aware Greedy Matching System**
+(`UltraCustomClassSyncv4`), while `UltrasLW` relies on **hardcoded player usernames
+and static role assignments**.
+
+
+================================================================================
+2. HOW ULTRASV4 AUTO-ASSIGNMENT & CAPABILITY MATCHING WORKS
+================================================================================
+
+2.1 Step 1: Inventory & Bank Class Discovery
+--------------------------------------------
+When an Ultra script starts, it extracts all candidate classes for all 4 slots:
+```csharp
+HashSet<string> allNeeded = new(StringComparer.OrdinalIgnoreCase);
+foreach (SlotRequirement slot in slotRequirements)
+    foreach (string cls in slot.Classes)
+        allNeeded.Add(cls);
+```
+Each account scans both its active **Inventory** and **Bank**:
+- If an account owns a needed class in its Bank, it automatically unbanks it to Inventory.
+- Result: An array of owned classes (e.g., `["ArchPaladin", "Lord of Order", "Verus DoomKnight"]`).
+
+2.2 Step 2: Forge Weapon Enhancement Capability Probing
+-------------------------------------------------------
+`UltraCustomClassSyncv4` queries `CoreAdvanced` to probe which Forge quests the account
+has unlocked:
+```csharp
+List<string> myEnhancements = new();
+if (Adv.uElysium()) myEnhancements.Add("Elysium");
+if (Adv.uArcanasConcerto()) myEnhancements.Add("ArcanasConcerto");
+if (Adv.uValiance()) myEnhancements.Add("Valiance");
+if (Adv.uSmite()) myEnhancements.Add("Smite");
+if (Adv.uPraxis()) myEnhancements.Add("Praxis");
+if (Adv.uRavenous()) myEnhancements.Add("Ravenous");
+if (Adv.uDauntless()) myEnhancements.Add("Dauntless");
+```
+
+2.3 Step 3: Atomic Distributed Registration (READY Payload)
+-----------------------------------------------------------
+Each account writes its complete capabilities to the shared sync file:
+`Username:READY|Classes=Verus DoomKnight,ArchPaladin,Lord of Order|Enh=Valiance,Ravenous,Praxis:1724600000`
+
+All 4 accounts poll the sync file until 4 valid `READY` entries exist.
+
+2.4 Step 4: Deterministic Constraint-Aware Greedy Matching Algorithm
+--------------------------------------------------------------------
+Once all 4 accounts are registered, **every client runs the exact same deterministic
+algorithm locally**, guaranteeing 100% agreement without needing a leader process.
+
+The Matching Algorithm Steps:
+1. **Alphabetical Player Sorting**:
+   Players are sorted by username (`sortedPlayers = players.OrderBy(p => p.Name)`).
+   This ensures identical iteration order on all 4 machines.
+
+2. **Constraint-Driven Slot Ordering (`orderedSlots`)**:
+   Slots are sorted so the hardest-to-fill slots are assigned FIRST:
+   - Priority 1: Slots requiring specific Forge enhancements (e.g., Elysium) evaluated first.
+   - Priority 2: Slots with the fewest eligible candidates evaluated next.
+   - Priority 3: Tie-breaker by enhancement name.
+
+3. **Most-Constrained Candidate Selection**:
+   For each slot:
+   - Filter candidates who (a) own the class and (b) own the required Forge enhancement.
+   - If multiple accounts qualify, select the candidate with the **FEWEST open slots
+     they can fill across the entire raid**.
+   - *Why this is critical*: If Account A can ONLY play Lord of Order, but Account B
+     can play Lord of Order AND Bard AND Dragon of Time (with Elysium), the algorithm
+     assigns Lord of Order to Account A. This reserves Account B for the specialized
+     Bard/Elysium role.
+
+4. **Equip Execution**:
+   Each client reads `assignments[Bot.Player.Username]`, equips its assigned class,
+   and clears the sync file.
+
+2.5 Step 5: Weapon Enhancement Minimization Across Multiple Ultras
+------------------------------------------------------------------
+In `ultras_enhancements.json`:
+- Enhancements are standardized across classes (e.g. Lord of Order = Awe Blast / Penitence;
+  ArchPaladin = Valiance / Vainglory; StoneCrusher = Valiance / Absolution).
+- Because candidate selection is deterministic and constraint-driven, the same account
+  is consistently assigned the same role across consecutive bosses in `DoAllUltrasv4`.
+- Result: Accounts keep their equipped weapons and enhancements without constant
+  re-forging at `/forge` or `/join spellcraft` in between boss fights.
+
+
+================================================================================
+3. WHAT LONWOLF (ULTRASLW) LACKS REGARDING AUTO-ASSIGNMENT
+================================================================================
+
+3.1 Hardcoded Username Configuration Requirement
+------------------------------------------------
+In `UltrasLW`:
+- Every script requires setting 4 explicit username strings in script options:
+  `PlayerOne = "MainAccount"`, `PlayerTwo = "Alt1"`, `PlayerThree = "Alt2"`, `PlayerFour = "Alt3"`.
+- If you launch with a different set of accounts (e.g. Accounts 4, 5, 6, 7), the script
+  stalls or rejects the connections because the usernames do not match `playerOne..playerFour`.
+
+3.2 Fixed Player-to-Role Mapping (No Capability Check)
+------------------------------------------------------
+- In `UltrasLW`, `playerOne` is hardcoded to Role 1, `playerTwo` to Role 2, etc.
+- `UltrasLW` **never inspects whether `playerOne` actually owns the class or Forge enhancement**.
+- If `playerOne` lacks Elysium for Dragon of Time, `UltrasLW` simply falls back to
+  Health Vamp or fails, even if `playerTwo` has Elysium unlocked and could have played DoT!
+
+3.3 Inability to Dynamic-Roster from a Pool of Accounts
+-------------------------------------------------------
+- If you own 7 bot accounts and run any arbitrary group of 4 accounts, `UltrasLW`
+  cannot automatically discover who is in the room and assign them their optimal roles.
+
+
+================================================================================
+4. ARCHITECTURAL BLUEPRINT FOR IMPLEMENTING AUTO-ASSIGNMENT INTO ULTRASDUCK
+================================================================================
+
+To integrate this system into `Customv2/UltrasDUCK`, we can implement:
+
+```mermaid
+graph TD
+    subgraph "CoreDUCK Dynamic Capability Pipeline"
+        Probe["1. Auto-Probe Account Capabilities (Owned Classes + Forge Unlocks)"]
+        Sync["2. Distributed READY Broadcast (Username:READY|Classes=...|Enh=...)"]
+        Order["3. Constraint-Driven Slot Ordering (Enhancement required & fewest candidates first)"]
+        Match["4. Most-Constrained Greedy Match (Preserve specialized accounts)"]
+        Preset["5. Link to ClassPreset (Auto-fetch Lucky/Wiz, Forge Helm/Cape, Skills)"]
+        Equip["6. Equip Class & Apply Profile (Skip re-forge if already matching)"]
+    end
+```
+
+Key Implementation Points for `UltrasDUCK`:
+1. **Remove Hardcoded Username Options**:
+   Allow any 4 connected accounts to register dynamically in the sync file.
+2. **Capability-Aware `ClassPreset` Binding**:
+   Instead of just string class names, pair `SlotRequirement` with `ClassPreset` definitions:
+   - If a slot requests `DragonOfTime` with `Elysium`, only accounts with `Adv.uElysium()` qualify.
+   - If no account has `Elysium`, automatically fall back to the preset's `WeaponEnhancementFallbacks`.
+3. **Enhancement Cache Preservation**:
+   Check if the current equipped weapon/cape/helm already matches the preset before
+   executing enhancement routines, eliminating re-forge delays during gauntlet runs.
+
+
+================================================================================
+5. CONCLUSION
+================================================================================
+The `Ultrasv4` auto-assignment logic is significantly more advanced than `UltrasLW`'s
+static configuration. By porting `UltraCustomClassSyncv4`'s constraint-aware greedy
+matching into `UltrasDUCK`, we combine the best of both worlds:
+- **CoreLoneWolf's superior low-latency combat thread, priority queues & packet sniffer**.
+- **Ultrasv4's dynamic capability discovery, Forge requirement matching & zero-configuration dynamic rostering**.
+
+================================================================================
+                             END OF REPORT
+================================================================================

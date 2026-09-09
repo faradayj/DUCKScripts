@@ -1,0 +1,740 @@
+================================================================================
+================================================================================
+           ALL ULTRAS LONEWOLF (0AllUltras_LW.cs) - COMPLETE TECHNICAL ARCHITECTURE
+                       AND DEEP-DIVE IMPLEMENTATION GUIDE
+================================================================================
+================================================================================
+
+Target File Analyzed : Scripts/UltrasLW/0AllUltras_LW.cs
+Primary Dependencies: Scripts/UltrasLW/CoreLoneWolf.cs
+                      Scripts/CoreBots.cs
+                      Scripts/CoreAdvanced.cs
+                      11 Individual Ultra Boss Modules (Scripts/UltrasLW/*)
+Output Documentation: Scripts/Customv2/how/0AllUltras_LW_How_It_Works.txt
+
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+1. EXECUTIVE SUMMARY & OVERVIEW
+2. COMPLETE DEPENDENCY TREE & SCRIPT RELATIONSHIPS
+3. END-TO-END EXECUTION LIFECYCLE OF 0AllUltras_LW.cs
+   3.1 Configuration & MultiOptions Storage
+   3.2 Bitmask Architecture & Quest ID Matrix
+   3.3 The Upfront Distributed Quest Ballot (BuildPartyRequiredMask)
+   3.4 Dynamic Run Mask Resolution
+   3.5 The Oracle Aura Reset Protocol (PrepareOracle & ResetBetweenUltras)
+   3.6 Master-to-Slave Sequential Execution Pipeline
+   3.7 Result Evaluation, Retries, and Teardown
+4. THE CORELONEWOLF IPC PROTOCOL & CROSS-CLIENT SYNCHRONIZATION
+   4.1 File Transport Architecture & Path Resolution
+   4.2 Wire Protocol Grammar & Record Formats
+   4.3 Leader (playerOne) vs Follower (playerTwo..playerFour) State Machine
+   4.4 Token Exchange, Session Validation & Desync Recovery
+   4.5 Distributed Death Tracking & Wipe Consensus (ShouldResetFight)
+5. THE LOW-LATENCY MULTI-THREADED COMBAT & SKILL ENGINE
+   5.1 Dedicated Skill Thread (100ms Tick) vs Native Skua Skill Timers
+   5.2 Priority Action Queue Hierarchy
+   5.3 Consumables Subsystem (Tonics, Elixirs, Combat Potions, Scrolls)
+   5.4 Forge Enhancement Optimizer & Automated Fallback Trees
+   5.5 Specialized Class Combat Engines
+6. FLASH PACKET DETECTION & REAL-TIME EVENT SNIFFING
+   6.1 Packet Sniffer Architecture (PacketDetectorThread)
+   6.2 Packet Patterns, Boss Markers & Animation String Parsing
+7. DEEP DIVE: THE 11 ULTRA BOSS MODULES
+   7.1 Ultra Ezrajal (Dailies/UltraEzrajal_LW.cs)
+   7.2 Ultra Warden (Dailies/UltraWarden_LW.cs)
+   7.3 Ultra Engineer (Dailies/UltraEngineer_LW.cs)
+   7.4 Ultra Tyndarius (Dailies/UltraTyndarius_LW.cs)
+   7.5 Champion Drakath (UltraDrakath_LW.cs)
+   7.6 Ultra Drago (UltraDrago_LW.cs)
+   7.7 Ultra Nulgath (UltraNulgath_LW.cs)
+   7.8 Ultra Dage (UltraDage_LW.cs)
+   7.9 Ultra Darkon (UltraDarkon_LW.cs)
+   7.10 Ultra Gramiel (UltraGramiel_LW.cs)
+   7.11 Ultra Speaker (UltraSpeaker_LW.cs)
+8. ARMY COMPOSITIONS & CLASS ASSIGNMENT MATRIX
+9. ERROR HANDLING, FAIL-SAFES & RESILIENCY
+
+
+================================================================================
+1. EXECUTIVE SUMMARY & OVERVIEW
+================================================================================
+"0AllUltras_LW.cs" (All Ultras LoneWolf) is the master orchestrator script in the
+LoneWolf (LW) Ultra combat framework for Skua / AdventureQuest Worlds (AQW).
+
+Its primary objective is to autonomously coordinate a 4-player party (Army)
+across 11 high-difficulty "Ultra" boss encounters (4 Daily Ultras + 7 Weekly
+Ultras) in a single uninterrupted automated gauntlet run.
+
+Key Operational Highlights:
+---------------------------
+- Multi-Process IPC: Skua client instances run in separate Windows processes.
+  0AllUltras_LW and CoreLoneWolf synchronize all accounts via atomic, file-based
+  Inter-Process Communication (IPC) text files (.sync) stored in Skua Options.
+- Upfront Party Consensus: Before entering any combat zone, all 4 accounts cast
+  an upfront ballot checking which quests they still need. If an Ultra is already
+  completed on all 4 accounts, the entire party skips that boss seamlessly.
+- State Cleansing (Oracle Reset): AQW retains lingering combat auras, debuffs,
+  and state locks across room transitions. Between Ultra fights, the orchestrator
+  teleports accounts to their house and equips the Oracle class to purge all
+  auras and reset ability cooldowns cleanly.
+- Modular Delegation: Rather than hardcoding 11 boss fights into one giant file,
+  0AllUltras_LW acts as a controller that dynamically executes standalone boss
+  classes (e.g., UltraSpeaker_LW, UltraEzrajal_LW) via the unified interface
+  method "RunFromMaster()".
+
+
+================================================================================
+2. COMPLETE DEPENDENCY TREE & SCRIPT RELATIONSHIPS
+================================================================================
+
+                             [0AllUltras_LW.cs]
+                        (Master Orchestrator / Queue)
+                                     |
+           +-------------------------+-------------------------+
+           |                                                   |
+           v                                                   v
+   [CoreLoneWolf.cs]                                   [CoreBots.cs]
+ (Shared IPC, Threading,                            (Skua Core API Wrappers,
+  Skill Engine, Potions,                             Packets, Shops, Banking)
+  Forge Enhancements)                                          |
+           |                                                   v
+           |                                          [CoreAdvanced.cs]
+           |                                        (Forge Enhancements,
+           |                                         Item Requirements)
+           v
++-------------------------------------------------------------------------+
+|                  11 INDIVIDUAL ULTRA BOSS SCRIPTS                       |
++-------------------------------------------------------------------------+
+|  DAILY ULTRAS:                                                          |
+|    1. Dailies/UltraEzrajal_LW.cs    (Quest 8152 | Mana Lock Battlestaff) |
+|    2. Dailies/UltraWarden_LW.cs     (Quest 8153 | 500k HP Taunt Loop)   |
+|    3. Dailies/UltraEngineer_LW.cs   (Quest 8154 | Drone Target Priority)|
+|    4. Dailies/UltraTyndarius_LW.cs  (Quest 8245 | Dual Orb Taunt Sync)  |
+|                                                                         |
+|  WEEKLY ULTRAS:                                                         |
+|    5. UltraDrakath_LW.cs            (Quest 8300 | 2M HP Threshold Taunt)|
+|    6. UltraDrago_LW.cs              (Quest 8397 | 3-Boss Target Offsets)|
+|    7. UltraNulgath_LW.cs            (Quest 8692 | Overfiend Blade Taunt)|
+|    8. UltraDage_LW.cs               (Quest 8547 | Noxious Decay Inhibit)|
+|    9. UltraDarkon_LW.cs             (Quest 8746 | Attack Anim & LOO Hold|
+|   10. UltraGramiel_LW.cs            (Quest 10301| Crystal HP Balancing) |
+|   11. UltraSpeaker_LW.cs            (Quest 9173 | Zone & Truth/Listen)  |
++-------------------------------------------------------------------------+
+                                   |
+                                   v
+             [Shared IPC Sync Files in Skua/Options/*.sync]
+             - 0AllUltras_Completion.sync
+             - UltraEzrajal_LW.sync
+             - UltraWarden_LW.sync
+             - UltraSpeaker_LW.sync
+             - etc.
+
+
+================================================================================
+3. END-TO-END EXECUTION LIFECYCLE OF 0AllUltras_LW.cs
+================================================================================
+
+3.1 Configuration & MultiOptions Storage
+----------------------------------------
+0AllUltras_LW uses Skua's MultiOptions configuration format to present a
+clean, structured GUI tab layout:
+- Category "Setup":
+  * player1..player4: Account usernames (Player 1 is the leader/sync boss).
+  * PrivateRoomNumber: Room instance number (1001 to 99999).
+  * UseEnhancements (bool): Auto-applies Forge & optimal enhancements.
+  * UsePotions (bool): Auto-buys and drinks Tonics, Elixirs, Combat Potions.
+  * SkipCompletedUltras (bool): Skips bosses where all 4 accounts are done.
+- Category "Daily_Ultras":
+  * Enable toggles and composition dropdowns for Ezrajal, Warden, Engineer,
+    and Tyndarius.
+- Category "Weekly_Ultras":
+  * Enable toggles and composition dropdowns for Drakath, Drago, Nulgath,
+    Dage, Darkon, Gramiel, and Speaker.
+
+3.2 Bitmask Architecture & Quest ID Matrix
+------------------------------------------
+0AllUltras_LW utilizes integer bitmasks to track boss states with zero
+string overhead and high efficiency:
+
++----+-------------------+----------+-----------+------------+---------------+
+| Bit| Ultra Boss Name   | Bit Value| Quest ID  | Type       | Prerequisite  |
++----+-------------------+----------+-----------+------------+---------------+
+|  0 | Ultra Ezrajal     | 1 << 0(1)| 8152      | Daily      | 8151          |
+|  1 | Ultra Warden      | 1 << 1(2)| 8153      | Daily      | 8151          |
+|  2 | Ultra Engineer    | 1 << 2(4)| 8154      | Daily      | 8151          |
+|  3 | Ultra Tyndarius   | 1 << 3(8)| 8245      | Daily      | 8243          |
+|  4 | Champion Drakath  | 1 << 4(16| 8300      | Weekly     | 3881          |
+|  5 | Ultra Drago       | 1 << 5(32| 8397      | Weekly     | 8395          |
+|  6 | Ultra Nulgath     | 1 << 6(64| 8692      | Weekly     | None          |
+|  7 | Ultra Dage        | 1 << 7(128 8547      | Weekly     | 793           |
+|  8 | Ultra Darkon      | 1 << 8(256 8746      | Weekly     | 8733          |
+|  9 | Ultra Gramiel     | 1 << 9(512 10301     | Weekly     | 9986          |
+| 10 | Ultra Speaker     | 1<<10(1024 9173      | Weekly     | 9125          |
++----+-------------------+----------+-----------+------------+---------------+
+
+3.3 The Upfront Distributed Quest Ballot (BuildPartyRequiredMask)
+-----------------------------------------------------------------
+When "SkipCompletedUltras" is enabled, the script executes a ballot before
+fighting any boss:
+1. LoneWolf.StartArmySync("0AllUltras_Completion.sync", 4, "Setup") initializes
+   the sync session.
+2. Each client checks its local quest status:
+   `NeedsUltra(category, optionName, questId) => enabled && !IsDailyComplete(id)`
+3. For every needed Ultra, the client calls `LoneWolf.SendArmySignal("ULTRA_REQUIRED_<bit>")`.
+4. The army calls `LoneWolf.SyncArmy("COMPLETION_MASK_READY")` to ensure all 4
+   accounts have submitted their signals.
+5. Each client iterates through the sync log. If ANY player (1 to 4) emitted
+   the signal for bit X, that bit is added into `partyRequiredMask`.
+
+3.4 Dynamic Run Mask Resolution
+-------------------------------
+`actualRunMask = skipCompletedUltras ? (selectedMask & partyRequiredMask) : selectedMask;`
+`remainingUltras = CountUltras(actualRunMask);`
+If `actualRunMask == 0`, all requested Ultras are completed and the script
+exits immediately with no unnecessary room hops.
+
+3.5 The Oracle Aura Reset Protocol (PrepareOracle & ResetBetweenUltras)
+-----------------------------------------------------------------------
+In AQW, high-end boss mechanics apply permanent or long-duration combat auras
+(e.g., Focus, Sanctity, Righteous Seal, Mana Lock, Noxious Decay, Liberator).
+Changing rooms normally does NOT clear these auras from the player entity,
+which causes premature wipes on subsequent boss attempts.
+
+To solve this:
+1. `PrepareOracle()`:
+   - Verifies if the account owns the "Oracle" class.
+   - If not in inventory, opens Bank, searches for "Oracle", and moves to inventory.
+   - If not in bank, visits `/join classhalla-99999` and purchases Oracle (ID 759).
+2. `ResetBetweenUltras()` (executed after every successful Ultra fight if more remain):
+   - Sends `%xt%zm%house%1%<Username>%` to warp directly into the player's house.
+   - Waits for map load.
+   - Equips "Oracle". Swapping classes forces AQW's client and server combat
+     managers to wipe all active auras, debuffs, and state flags.
+   - Sleeps 1,000ms to allow packet settlement before proceeding to the next boss.
+
+3.6 Master-to-Slave Sequential Execution Pipeline
+-------------------------------------------------
+The script evaluates bosses in strict, deterministic order:
+Ezrajal -> Warden -> Engineer -> Tyndarius -> Drakath -> Drago -> Nulgath
+-> Dage -> Darkon -> Gramiel -> Speaker.
+
+For each boss:
+```csharp
+RunSelectedUltra("Daily_Ultras", "RunUltraEzrajal", "Ultra Ezrajal", EzrajalBit,
+                 () => new UltraEzrajal_LW().RunFromMaster());
+```
+Inside `RunFromMaster()`:
+1. `masterMode = true` tells the child script to read configuration from
+   `0AllUltras_LW`'s multi-category storage instead of standalone options.
+2. The child script starts its own dedicated `.sync` session (e.g. `UltraEzrajal_LW.sync`).
+3. Validates level & weapon requirements, accepts quest, enhances gear, drinks
+   potions, and runs up to `MaxFightAttempts` (3 attempts).
+4. Returns `UltraRunResult`:
+   - `UltraRunResult.Completed`: Quest turned in successfully. Advances queue.
+   - `UltraRunResult.AttemptsExhausted`: 3 attempts failed. Logs warning and
+     advances to the next Ultra so the gauntlet is not blocked.
+   - `UltraRunResult.Failed` (or stopped by user): Halts entire sequence.
+
+
+================================================================================
+4. THE CORELONEWOLF IPC PROTOCOL & CROSS-CLIENT SYNCHRONIZATION
+================================================================================
+
+4.1 File Transport Architecture & Path Resolution
+-------------------------------------------------
+Because each Skua client is an independent OS process, cross-account
+communication cannot use shared memory pointers.
+CoreLoneWolf implements a flat-file IPC transport stored at:
+`%AppData%\Roaming\Skua\Options\<syncFileName>`
+
+File I/O Safety Measures:
+- Multi-Process File Sharing: Opened with `FileMode.Append`, `FileAccess.Write`,
+  and `FileShare.Read` to allow multiple processes to append concurrently.
+- Retry Loop: If a process encounters an `IOException` (file lock contention),
+  it sleeps `ArmyFileRetryDelay` (100ms) and retries automatically.
+- Sanitization: All record fields are validated via `IsSafeArmyField()` to
+  prevent pipe delimiter injection or newline corruption.
+
+4.2 Wire Protocol Grammar & Record Formats
+------------------------------------------
+Every line written to a `.sync` file follows a pipe-delimited format:
+`<RECORD_TYPE>|<PROTOCOL_VERSION>|<SESSION_ID>|<PARAM_1>|...|<PARAM_N>`
+
+The Protocol Version is fixed to `"1"`.
+
+Standard Records:
+-----------------
+1. `RESET|1|<sessionId>`
+   - Emitted by `playerOne` (Leader) at startup to invalidate all previous sessions.
+2. `READY|1|<sessionId>|<username>|<launchToken>`
+   - Emitted by each player (1..4) advertising readiness with a unique GUID token.
+3. `START|1|<sessionId>|<token1>|<token2>|<token3>|<token4>`
+   - Emitted by `playerOne` after receiving `READY` tokens from all 4 players.
+     Locks the army roster into this session.
+4. `STEP|1|<sessionId>|<stepId>|<stepName>`
+   - Emitted by `playerOne` to initiate a synchronization barrier (e.g. `SETUP_DONE`,
+     `FIGHT_READY`, `START_FIGHT`, `BOSS_DEFEATED`, `FINISH`).
+5. `ARRIVED|1|<sessionId>|<stepId>|<username>`
+   - Emitted by each player when they reach the checkpoint designated by `stepId`.
+6. `CONTINUE|1|<sessionId>|<stepId>`
+   - Emitted by `playerOne` once all 4 players have logged `ARRIVED` for `stepId`.
+     Releases followers from the barrier.
+7. `SIGNAL|1|<sessionId>|<signalName>|<username>`
+   - Asynchronous broadcast signal (e.g. `ULTRA_REQUIRED_1`, `FIGHT_DEAD_1`,
+     `FIGHT_ALIVE_1`, `RIGHTEOUS_SEAL_READY_1`).
+8. `STOP|1|<sessionId>|<reason>`
+   - Emitted by `playerOne` to signal session termination (`COMPLETE`,
+     `ATTEMPTS_EXHAUSTED`, or fatal error).
+
+4.3 Leader (playerOne) vs Follower (playerTwo..playerFour) State Machine
+-----------------------------------------------------------------------
+
+    +-------------------+                       +-------------------+
+    |    PLAYER ONE     |                       |   PLAYER TWO..N   |
+    |     (Leader)      |                       |    (Followers)    |
+    +-------------------+                       +-------------------+
+              |                                           |
+     Emits RESET & READY                         Emits READY (Token)
+              |                                           |
+     Waits for all Tokens                                 |
+              |                                           |
+     Emits START (All Tokens) --------------------------> Detects START
+              |                                           |
+     Emits STEP (stepId, name) -------------------------> Detects STEP
+              |                                           |
+     Emits ARRIVED                               Emits ARRIVED
+              |                                           |
+     Waits for all ARRIVED                                |
+              |                                           |
+     Emits CONTINUE ------------------------------------> Detects CONTINUE
+              |                                           |
+     [Executes Task]                             [Executes Task]
+
+4.4 Token Exchange, Session Validation & Desync Recovery
+--------------------------------------------------------
+- Launch Tokens: Every client generates a random GUID (`armyLaunchToken`) on
+  `StartArmySync()`.
+- Roster Lockdown: `playerOne` includes all 4 tokens in the `START` record. If a
+  stale client from a previous run attempts to write, its token mismatch causes
+  it to be ignored.
+- Replaced Sessions: If a client reads a `RESET` record with a newer `sessionId`,
+  it detects that the leader restarted the army, terminates its current run,
+  and logs `"Army sync session was replaced"`.
+
+4.5 Distributed Death Tracking & Wipe Consensus (ShouldResetFight)
+------------------------------------------------------------------
+During combat, accounts constantly monitor party health via `ShouldResetFight()`:
+1. If an account dies, it appends `SIGNAL|1|<session>|FIGHT_DEAD_<attempt>|<username>`.
+2. When it respawns, it appends `SIGNAL|1|<session>|FIGHT_ALIVE_<attempt>|<username>`.
+3. Each client scans the recent signals. If 2 or more players are dead simultaneously
+   (`deadCount >= deadPlayerThreshold`), the fight is declared unsalvageable.
+4. `playerOne` emits `FIGHT_RESET_<attempt>`.
+5. All 4 accounts stop attacking, kill their skill engines, jump to `SafeCell`,
+   and sync at `FIGHT_RESET_<attempt>_SAFE` before retrying.
+
+
+================================================================================
+5. THE LOW-LATENCY MULTI-THREADED COMBAT & SKILL ENGINE
+================================================================================
+
+5.1 Dedicated Skill Thread (100ms Tick) vs Native Skua Skill Timers
+-------------------------------------------------------------------
+Skua's built-in `Bot.Skills.Start()` relies on GUI timer loops and script-level
+function evaluation which introduces 300ms - 800ms of latency per skill cast.
+In Ultra boss fights where a taunt missed by 0.5s causes a total team wipe,
+this latency is fatal.
+
+CoreLoneWolf completely bypasses native skill timers:
+- Calls `ValidateFunctionBasedSkillsDisabled()` to ensure Skua timer is off.
+- Spawns a dedicated background thread: `new Thread(SkillEngineWorker)` with
+  `IsBackground = true`.
+- Ticks at `SkillPollDelay = 100ms` (and `CSSGunslingerFirePollDelay = 50ms` for
+  Chrono Shadowhunter burst windows).
+
+5.2 Priority Action Queue Hierarchy
+-----------------------------------
+The `SkillEngineWorker` evaluates actions in strict priority order every 100ms:
+
+1. Absolute Priority Taunt (`pendingAbsolutePriorityTauntMapId`):
+   - Highest priority. Immediately interrupts normal rotations to cast
+     `Scroll of Enrage` (Skill 5/Item) on the specified monster map ID.
+2. Immediate Taunt (`pendingImmediateTauntMapId`):
+   - Casts Enrage immediately if off cooldown, returning true/false.
+3. Pending Regular Taunt (`pendingTauntMapId`):
+   - Queues taunt to fire on the very next available GCD/animation frame.
+4. Absolute Priority Skill (`pendingAbsolutePrioritySkill`):
+   - Forces an immediate class skill cast (e.g. AP Skill 4 `Righteous Seal`).
+5. Priority Skill (`pendingPrioritySkill`):
+   - High-priority situational skill cast (e.g. emergency heal or cleanse).
+6. Targeted Priority Skill (`pendingTargetedPrioritySkill`):
+   - Targets a specific add/monster, casts the skill, and targets back.
+7. Class-Specific Specialized Rotations:
+   - Executes specialized mode logic (KingsEcho, ArcanaInvoker, etc.).
+8. Standard Sequential Skill Loop (`skillList` index progression).
+
+5.3 Consumables Subsystem (Tonics, Elixirs, Combat Potions, Scrolls)
+-------------------------------------------------------------------
+`PreparePotions()` and `PrepareScrolls()` fully automate inventory preparation:
+- Potion Categories:
+  * Tonic: Fate Tonic (Luck), Sage Tonic (Int), Body Tonic (End).
+  * Elixir: Potent Battle Elixir (Physical), Potent Malevolence Elixir (Magical),
+    Potent Revitalize Elixir (HoT).
+  * Combat Potion: Potent Honor Potion (+dmg), Felicitous Philtre (+crit dmg).
+- Automatic Purchasing & Banking:
+  * Checks inventory -> checks bank and unbanks -> joins `/alchemyacademy` (Shop 2036)
+    and purchases with gold if missing.
+- Scroll Crafting:
+  * Scrolls of Enrage (Quest 2330), Decay (Quest 2331), Mystify (Quest 2344).
+  * If below threshold (80 for Enrage, 10 for Decay/Mystify), visits `/spellcraft`
+    (Shops 693 & 549), buys Arcane Quills and Spell Inks, and turns in quests.
+- Combat Maintenance (`MaintainPotion`):
+  * Skill engine tracks potion auras. If Tonic/Elixir buff drops, re-casts from
+    inventory.
+
+5.4 Forge Enhancement Optimizer & Automated Fallback Trees
+----------------------------------------------------------
+`PrepareEnhancements()` configures optimal Forge weapon, helm, and cape
+enhancements, with automated fallback chains if high-tier Forge items are not
+unlocked on the account:
+
+Example Fallback Chains:
+- Weapon (Arcana's Concerto) -> Ravenous -> Valiance -> Praxis -> Health Vamp.
+- Weapon (Elysium)           -> Valiance -> Awe (Health Vamp / Mana Vamp).
+- Cape (Vainglory)           -> Lament -> Absolution -> Forge -> Regular Cape.
+- Helm (Forge / Vim / Examen)-> Anima -> Base Enhancement (Lucky / Wizard).
+
+5.5 Specialized Class Combat Engines
+------------------------------------
+CoreLoneWolf includes dedicated state-machine skill engines for complex classes:
+- Kings Echo (`SkillEngineMode.KingsEcho`):
+  * Monitors player mana against `kingsEchoManaThreshold = 12`.
+  * Suppresses high-cost damage abilities when mana drops, reserving mana strictly
+    for survival skills and taunts.
+- Arcana Invoker (`SkillEngineMode.ArcanaInvoker`):
+  * Tracks tarot card cycles ("0 - The Fool", "Judgement Day", "XXI - The World").
+  * Automatically handles card cycling and aligns the World nuke.
+- Chrono Shadowhunter (`SkillEngineMode.ChronoShadowHunterGunslinger`):
+  * Tracks "Gunslinger Stance" and "Rounds Empty" auras.
+  * Ticks at 50ms polling rate during burst window to unleash maximum damage.
+- Shaman (`SkillEngineMode.Shaman`):
+  * Maintains "Elemental Embrace" aura, manages Skill 3 toggles to avoid mana lock.
+- LightCaster Healing Mode (`SkillEngineMode.LightCasterHealing`):
+  * Replaces damage skills with prioritized heal rotations during heal checks.
+
+
+================================================================================
+6. FLASH PACKET DETECTION & REAL-TIME EVENT SNIFFING
+================================================================================
+
+6.1 Packet Sniffer Architecture (PacketDetectorThread)
+------------------------------------------------------
+Certain Ultra mechanics execute within 1.0s of a visual or chat tell from the
+boss. Polling boss HP or player auras is too slow.
+
+CoreLoneWolf implements a Flash Packet Sniffer:
+- `StartPacketDetector(string[] commands, string[] texts)`:
+  Attaches to Skua's low-level packet handler (`Bot.Events.ExtensionPacketReceived`
+  and `Bot.Events.PacketReceived`).
+- Intercepts raw server-to-client JSON/XML packets before Skua UI processes them.
+- Increments `packetDetectionCount` and stores `packetSelectedPacket`.
+- Allows Ultra scripts to call `HasPacketDetection(count)` to react within
+  single-digit milliseconds.
+
+6.2 Packet Patterns, Boss Markers & Animation String Parsing
+------------------------------------------------------------
+Common Packet Signatures Intercepted:
+- Dage Decay Warning: Chat command `ct` with text:
+  `"I possess the full power of the Legion at my disposal."`
+- Speaker Truth / Listen Cues:
+  `"I will make you see the truth."` / `"You shall listen."`
+- Darkon Attack Animations: Packet text contains:
+  `"\"animStr\":\"Attack2\""` or `"\"animStr\":\"Attack3\""`
+- Gramiel Phase 2 Attacks: Packet text contains:
+  `"\"animStr\":\"Charge\""`, `"\"animStr\":\"Charge2\""`, `"\"animStr\":\"ChargeAttack2\""`,
+  or `"Liberator"`.
+- Nulgath Abyss Summon: Chat packet containing `"Abyss!"`.
+
+
+================================================================================
+7. DEEP DIVE: THE 11 ULTRA BOSS MODULES
+================================================================================
+
+--------------------------------------------------------------------------------
+7.1 Ultra Ezrajal (Dailies/UltraEzrajal_LW.cs)
+--------------------------------------------------------------------------------
+- Quest ID: 8152 | Prerequisite: 8151 ("The Engineer") [Auto-bypassed]
+- Minimum Level: 61 | Map: `ultraezrajal` | Safe Cell: `Enter,Spawn` | Boss Cell: `r2,Left`
+- Compositions Supported:
+  * Default : LR (P1)  / SC (P2) / AP (P3) / LOO (P4)
+  * Stable  : KE (P1)  / SC (P2) / AP (P3) / LOO (P4)
+  * Reliable: VDK (P1) / SC (P2) / AP (P3) / LOO (P4)
+- Mechanics & Execution:
+  * Counter Attack Aura: Boss reflects 100% of damage taken during Counter Attack.
+    Script calls `Bot.UltraBossHelper.DisableCounterAttack()` and pauses attacks.
+  * Mana Lock Weapon Preparation:
+    - Ezrajal inflicts "Skill Locked" if players run out of mana.
+    - Script checks `Battle Oracle Battlestaff` (Shop 759).
+    - Enhances Battlestaff with `WeaponSpecial.Mana_Vamp`.
+    - Equips Battlestaff in safe room, charges mana to 100%, then swaps back to
+      primary weapon before entering combat.
+
+--------------------------------------------------------------------------------
+7.2 Ultra Warden (Dailies/UltraWarden_LW.cs)
+--------------------------------------------------------------------------------
+- Quest ID: 8153 | Prerequisite: 8151 ("The Engineer") [Auto-bypassed]
+- Minimum Level: 61 | Map: `ultrawarden` | Safe Cell: `Enter,Spawn` | Boss Cell: `r2,Left`
+- Compositions Supported:
+  * Default : LR / SC / AP / LOO
+  * Stable  : KE / SC / AP / LOO
+  * Reliable: VDK / SC / AP / LOO
+  * Test    : LR / SC / AP / LOO
+- Mechanics & Execution:
+  * Life/Death Execution Phase at 500,000 HP:
+    - Warden casts a 99,999 wipe attack when reaching low HP.
+    - Player 1 (or assigned Taunter) monitors `monsterHealth <= 500_000`.
+    - As soon as boss HP crosses 500k, `LoneWolf.RequestTaunt(MonsterMapId)` or
+      `RequestAbsolutePriorityTaunt` forces an immediate Enrage cast to absorb
+      the hit and finish the boss.
+
+--------------------------------------------------------------------------------
+7.3 Ultra Engineer (Dailies/UltraEngineer_LW.cs)
+--------------------------------------------------------------------------------
+- Quest ID: 8154 | Prerequisite: 8151 ("The Engineer") [Auto-bypassed]
+- Minimum Level: 61 | Map: `ultraengineer` | Safe Cell: `Enter,Spawn` | Boss Cell: `r2,Left`
+- Compositions Supported:
+  * Default : LR / SC / AP / LOO
+  * Stable  : KE / SC / AP / LOO
+  * Reliable: VDK / SC / AP / LOO
+- Mechanics & Execution:
+  * 3 Entities: Defense Drone (MapID 1), Attack Drone (MapID 2), Ultra Engineer (MapID 3).
+  * Strict Target Priority:
+    `targetMapId = DefenseDrone.Alive ? 1 : (AttackDrone.Alive ? 2 : 3);`
+  * Rationale: Defense Drone grants the boss 100% damage immunity and heals; Attack
+    Drone charges an AoE wipe. Defense Drone MUST die first.
+
+--------------------------------------------------------------------------------
+7.4 Ultra Tyndarius (Dailies/UltraTyndarius_LW.cs)
+--------------------------------------------------------------------------------
+- Quest ID: 8245 | Prerequisite: 8243 ("Avatar of Fire") [Auto-bypassed]
+- Minimum Level: 61 | Map: `ultratyndarius` | Safe Cell: `Enter,Spawn` | Boss Cell: `Boss,Left`
+- Compositions Supported:
+  * Default : LR / SC / AP / LOO
+  * Stable  : KE / SC / AP / LOO
+  * Reliable: VDK / SC / AP / LOO
+  * Fast    : AI / SC / AP / LOO
+- Mechanics & Execution:
+  * 3 Entities: Left Fire Orb (MapID 1), Tyndarius (MapID 2), Right Fire Orb (MapID 3).
+  * Dual Orb Taunting:
+    - Player 1 (LR/KE) taunts Left Orb (`FirstAddMapId = 1`).
+    - Player 2 (SC) taunts Right Orb (`SecondAddMapId = 3`).
+    - Keeps Orbs from casting raging flames on the party.
+  * ArchPaladin Pre-buff:
+    - Player 3 (AP) enters first, casts Skill 3 (`Righteous Seal`), verifies the aura
+      on Tyndarius, and broadcasts `RIGHTEOUS_SEAL_READY_<attempt>` signal before
+      the rest of the party enters.
+
+--------------------------------------------------------------------------------
+7.5 Champion Drakath (UltraDrakath_LW.cs)
+--------------------------------------------------------------------------------
+- Quest ID: 8300 | Prerequisite: 3881 ("The Final Showdown!") [Auto-bypassed]
+- Minimum Level: 80 | Map: `championdrakath` | Safe Cell: `Enter,Spawn` | Boss Cell: `r2,Left`
+- Compositions Supported:
+  * Default   : LR / SC / AP / LOO
+  * Stable    : KE / SC / AP / LOO
+  * Reliable  : VDK / SC / AP / LOO
+  * Optimized : Chaos Slayer / SC / AP / LOO
+  * Pay2Win   : Guardian / AP / LR / LOO
+- Mechanics & Execution:
+  * 2M HP Phase Burst Waves:
+    - Drakath unleashes a lethal Chaos Overload every 2 Million HP lost (20M -> 2M).
+  * Alternating Taunt Rotation:
+    - StoneCrusher (Player 2) Taunts at: 16.5M, 12.5M, 6.5M (or 6.2M).
+    - ArchPaladin (Player 3) Taunts at:  18.5M, 14.5M, 8.5M (or 8.2M), 4.5M (or 4.2M).
+    - Staggers damage reduction debuffs so party survives each transition.
+
+--------------------------------------------------------------------------------
+7.6 Ultra Drago (UltraDrago_LW.cs)
+--------------------------------------------------------------------------------
+- Quest ID: 8397 | Prerequisite: 8395 ("Mahapadma") [Auto-bypassed]
+- Minimum Level: 80 | Map: `ultradrago` | Safe Cell: `Enter,Spawn` | Boss Cell: `Boss,Left`
+- Compositions Supported:
+  * Default : LR / SC / AP / LOO
+  * Stable  : KE / SC / AP / LOO
+  * Reliable: VDK / SC / AP / LOO
+- Mechanics & Execution:
+  * 3 Bosses: Dene (MapID 1), Drago (MapID 2), Algie (MapID 3).
+  * Synchronized Entry Timings:
+    - Player 1 records entry Unix timestamp `DRAGO_ENTRY_TIME`.
+    - Taunters offset their entry by `EntryLeadMilliseconds = 2000ms` to capture
+      initial aggro before damage dealers enter.
+  * Taunt Assignments:
+    - Player 2 taunts Algie (`ALGIE_TAUNT_` signal).
+    - Player 3 taunts Dene (`DENIE_TAUNT_` signal).
+    - Focus targets: Dene -> Algie -> Drago.
+
+--------------------------------------------------------------------------------
+7.7 Ultra Nulgath (UltraNulgath_LW.cs)
+--------------------------------------------------------------------------------
+- Quest ID: 8692 | Prerequisite: None
+- Minimum Level: 80 | Map: `ultranulgath` | Safe Cell: `Enter,Spawn` | Boss Cell: `Boss,Right`
+- Compositions Supported:
+  * Default   : LR / SC / AP / LOO
+  * Stable    : KE / SC / AP / LOO
+  * Reliable  : VDK / SC / AP / LOO
+  * Optimized : DOT / DOT / LR / LOO
+  * Pay2Win   : Guardian / SC / LR / LOO
+  * Fast      : AI / VDK / LR / LOO
+- Mechanics & Execution:
+  * 2 Entities: Overfiend Blade (MapID 1), Ultra Nulgath (MapID 2).
+  * Packet Sniffer: Detects chat packet `ct` containing `"Abyss!"`.
+  * Overfiend Blade Taunt Loop:
+    - Taunter 1 taunts Overfiend Blade on spawn (TaunterOneTauntDelay = 5000ms).
+    - Player 4 taunts Nulgath (PlayerFourTauntDelay = 2000ms).
+    - Overfiend Blade health monitored (`BladeHealthThreshold = 750_000`).
+
+--------------------------------------------------------------------------------
+7.8 Ultra Dage (UltraDage_LW.cs)
+--------------------------------------------------------------------------------
+- Quest ID: 8547 | Prerequisite: 793 ("Fail to the King") [Auto-bypassed]
+- Minimum Level: 80 | Map: `ultradage` | Safe Cell: `Enter,Spawn` | Boss Cell: `Boss,Right`
+- Compositions Supported:
+  * Default : LR / SC / AP / LOO
+  * Stable  : KE / SC / AP / LOO
+  * Reliable: VDK / SC / AP / LOO
+- Mechanics & Execution:
+  * Noxious Decay Aura:
+    - When Dage casts Noxious Decay, all healing spells INVERT into lethal damage.
+    - Script tracks packet message `"I possess the full power of the Legion at my disposal."`
+      and aura `"Noxious Decay"`.
+    - Immediately suppresses all healing abilities across all 4 players until
+      the aura clears.
+  * Consumables: Uses Scroll of Decay (inhibits Dage's life recovery) and Scroll
+    of Mystify.
+
+--------------------------------------------------------------------------------
+7.9 Ultra Darkon (UltraDarkon_LW.cs)
+--------------------------------------------------------------------------------
+- Quest ID: 8746 | Prerequisite: 8733 ("The World") [Auto-bypassed]
+- Minimum Level: 90 | Map: `ultradarkon` | Safe Cell: `Enter,Spawn` | Boss Cell: `r2,Left`
+- Compositions Supported:
+  * Default   : LR / SC / AP / LOO
+  * Stable    : KE / SC / AP / LOO
+  * Optimized : LC / SC / AP / LOO
+  * Pay2Win   : Guardian / SC / AP / LOO
+- Mechanics & Execution:
+  * Animation Packet Detection:
+    - Sniffs `"\"animStr\":\"Attack2\""` and `"\"animStr\":\"Attack3\""`.
+    - Aria and A Major debuff tracking.
+  * LOO Ability Holding Phase:
+    - Between 10,000,000 HP and 4,500,000 HP, Lord of Order holds specific skills
+      to prevent triggering Darkon's percentage retaliation nukes.
+    - Releases full rotation once HP drops below 4.5M.
+  * Flail Taunt Timing: Taunter casts Enrage exactly `TauntDelay = 1250ms` after
+    the Attack3 packet cue.
+
+--------------------------------------------------------------------------------
+7.10 Ultra Gramiel (UltraGramiel_LW.cs)
+--------------------------------------------------------------------------------
+- Quest ID: 10301 | Prerequisite: 9986 ("Isa, Reversed - Realized") [Auto-bypassed]
+- Minimum Level: 80 | Map: `ultragramiel` | Safe Cell: `Enter,Spawn` | Fight Cell: `r2,Down`
+- Compositions Supported:
+  * Default   : LR / SC / AP / LOO
+  * Optimized : Shaman / SC / AP / LOO
+  * Test 2-4  : VDK / SC / AP / LOO
+- Mechanics & Execution:
+  * Phase 1: Crystal HP Balancing:
+    - 2 Crystals: Crystal A (MapID 2) and Crystal B (MapID 3).
+    - If HP delta between Crystal A and B exceeds `BalanceStartDifference = 20%`,
+      the party dynamically switches target to the higher-HP crystal until delta
+      is under `BalanceStopDifference = 2%`.
+    - Handles `"The Grace Crystal prepares a defense shattering attack!"`.
+  * Phase 2: Gramiel Nuke & Invulnerability State Machine:
+    - Tracks states: `Attacks`, `Liberator`, `ChargeTwo`, `ChargeAttackTwo`,
+      `WaitingForInvulnerableEnd`, `Finished`.
+    - Detects `"Liberator"` and `"Invulnerable"` aura, holding high-damage skills
+      until invulnerability drops.
+
+--------------------------------------------------------------------------------
+7.11 Ultra Speaker (UltraSpeaker_LW.cs)
+--------------------------------------------------------------------------------
+- Quest ID: 9173 | Prerequisite: 9125 ("Your Hero") [Auto-bypassed]
+- Minimum Level: 90 | Map: `ultraspeaker` | Safe Cell: `Enter,Spawn` | Boss Cell: `Boss,Left`
+- Compositions Supported:
+  * Default : LR (P1) / SC (P2) / AP (P3) / LOO (P4)
+  * Stable  : VDK (P1) / SC (P2) / AP (P3) / LOO (P4)
+  * Pay2Win : Guardian (P1) / SC (P2) / LR (P3) / AP (P4)
+- Mechanics & Execution:
+  * Chat Packet Step Engine:
+    - Sniffs Truth warning: `"I will make you see the truth."`
+    - Sniffs Listen warning: `"You shall listen."`
+    - Executes deterministic sequence steps:
+      Opening -> Section 1 -> Section 2 -> Section 3 -> Section 4.
+      Each step specifies exact Taunt Owner (Player 1..4) and priority skill owner.
+  * Zone Movement Coordinates (Equalize Mechanic):
+    - Safe Zone: `X = 890, Y = 395` (CoordinateTolerance = 20)
+    - Red Zone : `X = 731, Y = 380`
+    - Script moves players to Red zone to absorb Equalize, waits for "Sanctity" aura,
+      then walks back to Safe zone at `WalkSpeed = 8`.
+  * Brute Force Option (`UltraSpeakerBruteForceMethod`):
+    - Toggles off zone walking and keeps entire party in Safe zone if team has
+      sufficient damage reduction / Guardian mitigation.
+
+
+================================================================================
+8. ARMY COMPOSITIONS & CLASS ASSIGNMENT MATRIX
+================================================================================
+
++------------------+-------------+-------------+-------------+-------------+
+| Boss             | Player 1    | Player 2    | Player 3    | Player 4    |
++------------------+-------------+-------------+-------------+-------------+
+| Ultra Ezrajal    | LR / KE/ VDK| StoneCrusher| ArchPaladin | LordOfOrder |
+| Ultra Warden     | LR / KE/ VDK| StoneCrusher| ArchPaladin | LordOfOrder |
+| Ultra Engineer   | LR / KE/ VDK| StoneCrusher| ArchPaladin | LordOfOrder |
+| Ultra Tyndarius  | LR / KE/ VDK| StoneCrusher| ArchPaladin | LordOfOrder |
+| Champion Drakath | LR / KE/ VDK| StoneCrusher| ArchPaladin | LordOfOrder |
+| Ultra Drago      | LR / KE/ VDK| StoneCrusher| ArchPaladin | LordOfOrder |
+| Ultra Nulgath    | LR / KE/ VDK| StoneCrusher| ArchPaladin | LordOfOrder |
+| Ultra Dage       | LR / KE/ VDK| StoneCrusher| ArchPaladin | LordOfOrder |
+| Ultra Darkon     | LR / KE/ LC | StoneCrusher| ArchPaladin | LordOfOrder |
+| Ultra Gramiel    | LR / Shaman | StoneCrusher| ArchPaladin | LordOfOrder |
+| Ultra Speaker    | LR / VDK/ GD| StoneCrusher| ArchPaladin | LordOfOrder |
++------------------+-------------+-------------+-------------+-------------+
+
+Standard Enhancement & Consumable Presets:
+- Legion Revenant (LR): Wizard + Forge Helm + Vainglory Cape + Arcana's Concerto.
+  Tonic: Sage | Elixir: Potent Malevolence | Combat: Potent Honor.
+- StoneCrusher (SC): Wizard + Forge Helm + Absolution Cape + Arcana's Concerto.
+  Tonic: Sage | Elixir: Potent Malevolence | Combat: Potent Revitalize.
+- ArchPaladin (AP): Lucky + Forge Helm + Absolution Cape + Arcana's Concerto.
+  Tonic: Fate | Elixir: Potent Battle | Combat: Potent Revitalize / Enrage.
+- Lord of Order (LOO): Lucky + Forge Helm + Absolution Cape + Arcana's Concerto.
+  Tonic: Fate | Elixir: Potent Battle | Combat: Potent Revitalize / Enrage.
+
+
+================================================================================
+9. ERROR HANDLING, FAIL-SAFES & RESILIENCY
+================================================================================
+
+1. Automated Quest Prerequisite Bypass:
+   - In `ValidateUltraAccess()`, if an account has not completed the prerequisite
+     story quest (e.g. "The Engineer" 8151 or "Your Hero" 9125), the engine calls
+     `Bot.Quests.UpdateQuest(prereqId)` to bypass the lock and enable the Ultra.
+2. Weapon Damage Requirement Verification:
+   - Scans equipped weapons to ensure >= 30% damage boost. Emits alert if missing.
+3. Death & Desync Recovery:
+   - If an account dies during combat, `RecoverFromDeath()` monitors respawn,
+     jumps back to `BossCell,BossPad`, re-establishes target lock, and re-attaches
+     to the Skill Engine.
+4. Wipe Threshold Consensus:
+   - If 2 players die, `ShouldResetFight()` triggers a coordinated retreat to
+     `SafeCell`, cleanses combat state, and retries up to 3 times before failing
+     safely to prevent endless death loops.
+5. Post-Run Oracle Aura Purge:
+   - Warps to player house and equips Oracle class between boss fights to ensure
+     zero lingering debuffs or aura locks carried over into the next encounter.
+
+================================================================================
+                             END OF DOCUMENTATION
+================================================================================

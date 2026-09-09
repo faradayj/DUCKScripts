@@ -1,0 +1,54 @@
+====================================================================================================
+          ULTRA DAGE - STONECRUSHER SCROLL OF DECAY AUDIT & ROOT CAUSE ANALYSIS
+====================================================================================================
+Location: Scripts/Customv2/how/ultra_dage_decay_scroll_audit.txt
+Target Script: Scripts/Customv2/UltrasDUCK/UltraDageDUCK.cs
+
+----------------------------------------------------------------------------------------------------
+1. ROOT CAUSE SUMMARY: WHY STONECRUSHER IS NOT CASTING SCROLL OF DECAY
+----------------------------------------------------------------------------------------------------
+Four distinct bugs and race conditions in `UltraDageDUCK.cs` cause StoneCrusher to skip or fail to cast
+Scroll of Decay during the fight:
+
+BUG 1: HARDCODED PLAYER 4 CHECK FOR LORD OF ORDER'S SCROLL MODE
+  - In `PrepareSafeRoom()` line 437:
+    `mystifyMode = Duck.HasArmySignal(GetMystifySignal(fightAttempt), 4);`
+  - UltraDageDUCK hardcoded checking player index 4 for Lord of Order's `MYSTIFY` signal.
+  - In DUCK dynamic slot assignment (alphabetical account order), Lord of Order can be Player 1, 2, or 3.
+  - When Lord of Order is NOT Player 4:
+    * StoneCrusher never receives the `MYSTIFY` signal from LOO.
+    * StoneCrusher assumes `mystifyMode = false` (alternating decay mode).
+    * In `HandleDecayDetections`:
+      `bool ownsCycle = isStoneCrusher && (mystifyMode || cycle % 2 != 0) || isLordOfOrder && !mystifyMode && cycle % 2 == 0;`
+    * Because `mystifyMode` is false, StoneCrusher SKIPS all even cycles (cycle 2, 4, 6...).
+    * Lord of Order (running Mystify) never casts Decay on even cycles either, causing 50% to 100% of Dage's heals to go un-decayed!
+
+BUG 2: INFINITY TITAN CLASS NAME MISMATCH
+  - In `Run()` line 166:
+    `isStoneCrusher = string.Equals(preset.ClassName, "StoneCrusher", StringComparison.OrdinalIgnoreCase);`
+  - If a bot account owns `Infinity Titan` instead of `StoneCrusher`:
+    * `isStoneCrusher` evaluates to `false`!
+    * `isDPS` evaluates to `true` (`!isArchPaladin && !isLordOfOrder && !isStoneCrusher`)!
+    * `isTaunter` evaluates to `true` (`isDPS || isArchPaladin`)!
+    * Result: Infinity Titan equips `Scroll of Enrage` instead of `Scroll of Decay` and never enters `FightScrollHolder` or `HandleDecayDetections`!
+
+BUG 3: COMBAT POTION OVERWRITE IN SLOT 5
+  - In `Run()` lines 174-175:
+    `if (isTaunter) preset.CombatPotion = null;`
+  - For StoneCrusher and Lord of Order, `isTaunter` is `false`.
+  - `Duck.StoneCrusher()` has `CombatPotion = "Potent Honor Potion"`.
+  - `Duck.LordOfOrder()` has `CombatPotion = "Potent Honor Potion"`.
+  - Because `CombatPotion` was not nulled on SC/LOO:
+    `Duck.UsePotions()` equips `Potent Honor Potion` into consumable Slot 5 right before combat!
+    If `Duck.EquipScroll(DecayScroll)` failed or lagged, Slot 5 remained bound to Potent Honor Potion.
+
+BUG 4: PACKET DETECTOR COMMAND CHANNEL RESTRICTION
+  - In `StartDecayDetector()` line 452:
+    `Duck.StartPacketDetector("ct", DecayMessage);`
+  - Only listened on the single command string `"ct"`.
+  - Expanding to `new[] { "ct", "warning", "message" }` ensures packet detection regardless of whether the server delivers the heal broadcast via combat text, warning, or system message.
+
+BUG 5: SCROLL INVENTORY VERIFICATION & RE-EQUIP SAFEGUARD
+  - If `DecayScroll` is temporarily unequipped or unbanked after safe room preparation, `HandleDecayDetections` immediately aborted the cast.
+  - Adding a proactive equip check ensures `Scroll of Decay` is immediately equipped if found in inventory.
+====================================================================================================

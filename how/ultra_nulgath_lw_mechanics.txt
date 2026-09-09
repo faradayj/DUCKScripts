@@ -1,0 +1,288 @@
+====================================================================================================
+            ULTRA NULGATH (UltrasLW) - MASTER MECHANICAL & ARCHITECTURAL WRITEUP
+====================================================================================================
+Source File: Scripts/UltrasLW/UltraNulgath_LW.cs
+Target Map: ultranulgath (Boss Cell: Boss, Right | Safe Cell: Enter, Spawn)
+Monsters on Map:
+  1. Overfiend Blade (MapID: 1 | HP: 2,500,000) — Escalating wipe add
+  2. Ultra Nulgath   (MapID: 2 | HP: 8,000,000)   — Main boss
+Quest: Quest ID 8692 ("Ultra Nulgath")
+Required Level: Level 80+
+Framework: CoreLoneWolf (4-Player Synchronized Lockstep Army with Packet Detection)
+
+----------------------------------------------------------------------------------------------------
+TABLE OF CONTENTS
+----------------------------------------------------------------------------------------------------
+1. Boss Overview & Lethal Threat Mechanics
+2. The Packet-Triggered Dual-Taunt Synchronization Loop
+3. Dynamic Target Focus Switching on Overfiend Blade (GetTargetMapId)
+4. Combat Loop & Taunt Timing Math
+5. Breakdown of All 7 Army Compositions
+6. Defensive Loadouts, Potions & P2W Optimizations
+7. Wipe Recovery, Death Handling & Lockstep Sync
+
+====================================================================================================
+1. BOSS OVERVIEW & LETHAL THREAT MECHANICS
+====================================================================================================
+Ultra Nulgath is an 8,000,000 HP weekly boss featuring two deadly, interlocking wipe mechanics:
+
+1. The "Abyss!" / Overdrive Wipe Nuke:
+   - Periodically (~every 12-15 seconds), the server broadcasts an Abyss charging packet ("ct / Abyss!").
+   - Shortly after, Nulgath unleashes "Overdrive", dealing fatal lethal true damage to un-taunted
+     or un-mitigated party members.
+   - Requirement: Two taunters must execute a seamless double-taunt hand-off during the Abyss window.
+
+2. The Overfiend Blade (MapID: 1 | HP: 2,500,000):
+   - The Blade applies stacking damage buffs to Nulgath and outgoing true damage ticks to the party.
+   - If the Blade is left at full health (>750,000 HP), its damage escalates until the party wipes.
+   - Requirement: Designated DPS/support players must switch target to the Blade, burn it below
+     `BladeHealthThreshold` (750,000 HP or 500,000 HP), and then resume attacking Nulgath.
+
+====================================================================================================
+2. THE PACKET-TRIGGERED DUAL-TAUNT SYNCHRONIZATION LOOP
+====================================================================================================
+Instead of guessing when Nulgath will cast Overdrive, `UltraNulgath_LW.cs` uses a real-time
+Game Server Packet Detector (`LoneWolf.StartPacketDetector("ct", "Abyss!")`).
+
+The 2-Player Taunt Hand-Off Flow:
+----------------------------------------------------------------------------------------------------
+- Player 4 (Lord of Order / Taunter 2): Runs the packet detector.
+- Player 1 (Taunter 1 / LR, VDK, KE, AP): Listens for army sync signals from Player 4.
+
+Step-by-Step Sequence:
+1. Opening:
+   - At fight start, Player 1 casts the opening taunt on Nulgath (`openingTaunt = true`).
+2. Server Packet Trigger:
+   - Game server sends the packet: `{"cmd":"ct","msg":"The Abyss deepens!"}`.
+   - Player 4's packet detector intercepts this packet and increments `abyssCycle`.
+3. Player 4 (First Response Taunt):
+   - Player 4 waits `PlayerFourTauntDelay = 2000ms` (allowing Nulgath's cast animation to start).
+   - Player 4 casts `Scroll of Enrage` (Skill 5) on Nulgath (`MapID: 2`).
+   - Player 4 broadcasts the army signal: `ABYSS_TAUNT_DONE_<fightAttempt>_<abyssCycle>`.
+4. Player 1 (Second Response Taunt):
+   - Player 1 detects the `ABYSS_TAUNT_DONE` signal in the shared sync file.
+   - Player 1 schedules a taunt at `DateTimeOffset.Now + 5000ms` (`TaunterOneTauntDelay = 5000ms`).
+   - At $t = +5.0	ext{s}$, Player 1 casts `Scroll of Enrage` on Nulgath, taking over aggro and
+     soaking the second wave of Overdrive damage.
+5. Cycle Reset:
+   - `abyssCycle` increments, and both players wait for the next "Abyss!" packet.
+
+```mermaid
+sequenceDiagram
+    participant S as AQW Server
+    participant P4 as Player 4 (LOO / Taunter 2)
+    participant P1 as Player 1 (Taunter 1)
+    participant N as Ultra Nulgath (MapID 2)
+
+    Note over P1,N: Fight Start: Opening Taunt
+    P1->>N: Casts Scroll of Enrage (Opening Taunt)
+
+    Note over S: 12-15s into fight...
+    S->>P4: Server Packet: cmd="ct", text="Abyss!"
+    Note over P4: Packet Detected! Waits 2000ms
+    P4->>N: Casts Scroll of Enrage (Taunt 1)
+    P4->>P1: Broadcasts Signal: ABYSS_TAUNT_DONE_1_1
+    Note over P1: Signal received! Schedules taunt in 5000ms
+    Note over P1,N: 5.0s elapsed (P4 taunt expiring)...
+    P1->>N: Casts Scroll of Enrage (Taunt 2)
+    Note over P1,N: Overdrive nuke soaked safely!
+```
+
+====================================================================================================
+3. DYNAMIC TARGET FOCUS SWITCHING ON OVERFIEND BLADE (GetTargetMapId)
+====================================================================================================
+In `UltraNulgath_LW.cs`, players dynamically switch their combat target using `GetTargetMapId()`:
+
+```csharp
+private int GetTargetMapId()
+{
+    // Fast & P2W comps burn Nulgath directly (cleave kills the blade)
+    if (
+        armyComposition == ArmyComposition.Optimized
+        || armyComposition == ArmyComposition.Pay2Win
+        || armyComposition == ArmyComposition.Fast
+    )
+        return NulgathMapId;
+
+    // Stable & Reliable Compositions
+    if (
+        armyComposition == ArmyComposition.Stable
+        || armyComposition == ArmyComposition.Reliable
+    )
+    {
+        if (LoneWolf.IsArmyPlayer(1))
+        {
+            if (armyComposition == ArmyComposition.Reliable)
+                return LoneWolf.IsMonsterAlive(BladeMapId) ? BladeMapId : NulgathMapId;
+
+            return LoneWolf.GetMonsterHP(BladeMapId) > 500_000 ? BladeMapId : NulgathMapId;
+        }
+
+        if (LoneWolf.IsArmyPlayer(2))
+            return LoneWolf.IsMonsterAlive(BladeMapId) ? BladeMapId : NulgathMapId;
+
+        return NulgathMapId;
+    }
+
+    // Default Composition: Player 2 (StoneCrusher) manages the Blade
+    if (!LoneWolf.IsArmyPlayer(2))
+        return NulgathMapId;
+
+    int bladeHealth = LoneWolf.GetMonsterHP(BladeMapId);
+    return LoneWolf.IsMonsterAlive(BladeMapId) && bladeHealth > BladeHealthThreshold
+        ? BladeMapId
+        : NulgathMapId;
+}
+```
+
+Targeting Rules:
+1. Default Composition:
+   - Player 2 (StoneCrusher) attacks `BladeMapId` (1) while `bladeHealth > 750,000 HP`.
+   - Once the Blade drops below 750k HP, Player 2 switches back to `NulgathMapId` (2).
+   - If the Blade dies or drops to safe health, all 4 players focus Nulgath.
+2. Stable / Reliable Compositions:
+   - Player 1 (KE / VDK) or Player 2 focuses the Blade down to 500k HP, then switches back.
+3. Fast / P2W / Optimized Compositions:
+   - Single-target DPS is so high that all 4 players focus Nulgath directly; passive AoE cleaves
+     the Blade automatically without manual target switching.
+
+====================================================================================================
+4. COMBAT LOOP & TAUNT TIMING MATH
+====================================================================================================
+The combat loop in `UltraNulgath_LW.cs` executes on a 150ms poll tick:
+
+```csharp
+private FightResult Fight(ClassPreset preset, int fightAttempt)
+{
+    LoneWolf.StartSkillEngine(...);
+    bool playerFour = LoneWolf.IsArmyPlayer(4);
+    bool tauntScheduled = isTaunterOne;
+    bool openingTaunt = isTaunterOne;
+    int abyssCycle = 1;
+    DateTimeOffset tauntAt = isTaunterOne
+        ? DateTimeOffset.Now.AddMilliseconds(TaunterOneTauntDelay)
+        : DateTimeOffset.MinValue;
+
+    while (!Bot.ShouldExit)
+    {
+        if (!LoneWolf.IsMonsterAlive(NulgathMapId))
+            break;
+
+        if (LoneWolf.ShouldResetFight(fightAttempt))
+        {
+            LoneWolf.StopSkillEngine();
+            return FightResult.Reset;
+        }
+
+        // Death Recovery Check
+        if (!Bot.Player.Alive)
+        {
+            // Wait for respawn, jump back to Boss, Right
+            ...
+            continue;
+        }
+
+        // DYNAMIC TARGET MAINTENANCE:
+        LoneWolf.MaintainTarget(GetTargetMapId());
+        DateTimeOffset now = DateTimeOffset.Now;
+
+        // DUAL TAUNT HANDLING:
+        if (isTaunterOne)
+            RunTaunterOneTaunts(fightAttempt, ref abyssCycle, ref tauntScheduled, ref openingTaunt, ref tauntAt, now);
+        else if (playerFour && !RunPlayerFourTaunts(fightAttempt, ref abyssCycle, ref tauntScheduled, ref tauntAt, now))
+        {
+            LoneWolf.StopSkillEngine();
+            return FightResult.Stopped;
+        }
+
+        Bot.Sleep(FightPollDelay);
+    }
+
+    LoneWolf.StopSkillEngine();
+    return !LoneWolf.IsMonsterAlive(NulgathMapId) ? FightResult.Defeated : FightResult.Stopped;
+}
+```
+
+Timing Constants:
+- `PlayerFourTauntDelay = 2000ms` (Fires 2.0s after "Abyss!" packet).
+- `TaunterOneTauntDelay = 5000ms` (Fires 5.0s after Player 4 taunts).
+- `BladeHealthThreshold = 750,000 HP` (Safe Blade HP threshold).
+
+====================================================================================================
+5. BREAKDOWN OF ALL 7 ARMY COMPOSITIONS
+====================================================================================================
+1. Default Composition (LR / SC / AP / LOO)
+   - Player 1: Legion Revenant (Taunter 1)
+   - Player 2: StoneCrusher (Blade Manager)
+   - Player 3: ArchPaladin (Debuffs & Defense)
+   - Player 4: Lord of Order (Taunter 2 & Packet Detector)
+   - Profile: Standard baseline composition.
+
+2. Stable Composition (KE / SC / AP / LOO)
+   - Player 1: King's Echo (Taunter 1 & Blade DPS)
+   - Player 2: StoneCrusher (Blade DPS)
+   - Player 3: ArchPaladin
+   - Player 4: Lord of Order (Taunter 2)
+   - Profile: High sustained DPS, very stable Blade management.
+
+3. Reliable Composition (VDK / SC / AP / LOO)
+   - Player 1: Verus DoomKnight (Taunter 1 & Blade DPS)
+   - Player 2: StoneCrusher
+   - Player 3: ArchPaladin
+   - Player 4: Lord of Order (Taunter 2)
+   - Profile: High defense shred, fast Nulgath kill.
+
+4. Optimized Composition (DoT / DoT / LR / LOO)
+   - Player 1: Dragon of Time (Taunter 1)
+   - Player 2: Dragon of Time (DPS)
+   - Player 3: Legion Revenant (Taunter 1 in some setups)
+   - Player 4: Lord of Order (Taunter 2)
+   - Profile: Pure true-damage composition that ignores Blade health.
+
+5. Pay2Win Composition (Guardian / SC / LR / LOO)
+   - Player 1: Guardian (Massive shielding & burst)
+   - Player 2: StoneCrusher
+   - Player 3: Legion Revenant
+   - Player 4: Lord of Order
+   - Profile: High-end speed-run setup.
+
+6. Fast Composition (Arcana Invoker / VDK / LR / LOO)
+   - Player 1: Arcana Invoker (Extreme scaling DPS)
+   - Player 2: Verus DoomKnight
+   - Player 3: Legion Revenant
+   - Player 4: Lord of Order
+   - Profile: Fastest clear time with top-tier Forge gear.
+
+7. Test Composition (LR / SC / AP / LOO with Absolute Priority Taunts)
+
+====================================================================================================
+6. DEFENSIVE LOADOUTS, POTIONS & P2W OPTIMIZATIONS
+====================================================================================================
+1. Enhancements:
+   - Taunters use Forge weapons (`Valiance`, `Dauntless`) and defensive capes (`Penitence`).
+2. Potions:
+   - Non-taunters run Tonic + Elixir + Combat Potion (`Felicitous Philtre`).
+   - Taunters (Player 1 and Player 4) reserve Slot 5 exclusively for `Scroll of Enrage`.
+3. P2W / Guardian Optimizations:
+   - Uses `WeaponSpecial.Praxis` and `CapeSpecial.Lament` for rapid burst scaling.
+
+====================================================================================================
+7. WIPE RECOVERY, DEATH HANDLING & LOCKSTEP SYNC
+====================================================================================================
+1. Synchronized Setup:
+   - Army joins `ultranulgath-<room>`, `Enter`, `Spawn`.
+   - Consumes potions, equips `Scroll of Enrage`, executes `GenericPrebuff`.
+   - Player 4 launches the background packet listener (`StartPacketDetector`).
+   - Syncs on `FIGHT_READY`.
+2. Room Jump:
+   - Jumps to `Boss`, `Right` and syncs on `START_FIGHT`.
+3. Wipe Recovery (`HandleFightReset`):
+   - Upon wipe: packet detector is stopped (`StopPacketDetector`), skill engine stopped, target cancelled.
+   - Players respawn, regroup in `Enter`, `Spawn`, and synchronize on `FIGHT_RESET_<attempt>_SAFE`.
+   - Retries up to 3 times before graceful exit.
+4. Finish:
+   - When Nulgath dies: packet detector stopped, army jumps to `Enter`, `Spawn`, turns in quest `8692`,
+     and synchronizes on `Sync("FINISH")`.
+====================================================================================================
+                                      END OF ULTRA NULGATH WRITEUP
+====================================================================================================

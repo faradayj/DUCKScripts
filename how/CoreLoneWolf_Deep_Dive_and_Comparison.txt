@@ -1,0 +1,525 @@
+================================================================================
+================================================================================
+       CORELONEWOLF (CoreLoneWolf.cs) - COMPLETE TECHNICAL ARCHITECTURE
+               AND IN-DEPTH COMPARISON WITH COREENGINEV4.CS
+================================================================================
+================================================================================
+
+Target File Analyzed : Scripts/UltrasLW/CoreLoneWolf.cs
+Comparison Target    : Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
+Output File Location : Scripts/Customv2/how/CoreLoneWolf_Deep_Dive_and_Comparison.txt
+
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+1. EXECUTIVE OVERVIEW & ARCHITECTURAL PHILOSOPHY
+2. IPC FILE TRANSPORT & WIRE PROTOCOL SPECIFICATION
+   2.1 Flat-File Inter-Process Communication (IPC) Mechanism
+   2.2 Wire Protocol Grammar & Record Structure
+   2.3 Leader (playerOne) vs Follower (playerTwo..playerSeven) State Machine
+   2.4 Token Exchange, Session Validation & Desync Recovery
+   2.5 Distributed Heartbeats & Timestamp Synchronization
+3. LOW-LATENCY MULTI-THREADED COMBAT ENGINE
+   3.1 Dedicated OS Thread (SkillEngineWorker) vs Native Skua Timers
+   3.2 Polling Intervals (100ms Base / 50ms Chrono Burst)
+   3.3 Strict Global Cooldown (GCD) & Packet Safety
+4. MULTI-TIER PRIORITY ACTION QUEUE SUBSYSTEM
+   4.1 Queue Level 1: Absolute Priority Taunts
+   4.2 Queue Level 2: Immediate Taunts
+   4.3 Queue Level 3: Pending Regular Taunts
+   4.4 Queue Level 4: Absolute Priority Skills
+   4.5 Queue Level 5: Priority Skills
+   4.6 Queue Level 6: Targeted Priority Skills
+   4.7 Queue Level 7: Limited-Use Priority Skills
+   4.8 Queue Level 8: Parameterized Class Rotation Modes
+5. CONSUMABLES, SCROLLS & POTIONS SUBSYSTEM
+   5.1 Automated Shop Routing & Gold Purchasing (/alchemyacademy & /spellcraft)
+   5.2 Automated Scroll Crafting (Quests 2330, 2331, 2344)
+   5.3 In-Combat Ponic & Elixir Aura Maintenance
+6. FORGE ENHANCEMENT OPTIMIZER & RECURSIVE FALLBACK TREE
+   6.1 Inventory Inspection & Special Enhancement Resolution
+   6.2 Recursive Fallback Chains for Weapons, Helms, and Capes
+7. REAL-TIME FLASH PACKET DETECTION SUBSYSTEM
+   7.1 Event Listener Hooking & Packet Interception
+   7.2 Command & Text Matching Engine
+   7.3 Deterministic Reaction Timings
+8. DISTRIBUTED DEATH CONSENSUS & WIPE RESILIENCY
+   8.1 Alive / Dead State Broadcasting
+   8.2 Multi-Account Wipe Threshold (ShouldResetFight)
+   8.3 Safe Room Retreat & Reset Synchronization
+9. COMPREHENSIVE COMPARISON: CORELONEWOLF.CS VS COREENGINEV4.CS
+   9.1 Core Design Scope & Purpose
+   9.2 Threading Primitives & Loop Scheduling (Thread vs Task)
+   9.3 Taunt Execution Philosophy (Unified Priority Queue vs Dual-Thread Pulse Burst)
+   9.4 Class Logic Definition & Routing (Parameterized Presets vs Direct Introspection)
+   9.5 Error Handling, Throttling & FBS Management
+   9.6 Side-by-Side Architectural Feature Matrix
+10. CONCLUSION & SUMMARY
+
+
+================================================================================
+1. EXECUTIVE OVERVIEW & ARCHITECTURAL PHILOSOPHY
+================================================================================
+`CoreLoneWolf.cs` is a specialized, high-performance combat and synchronization
+engine developed for Skua to automate complex multi-account 4-player (and up to
+7-player) Ultra Boss encounters in AdventureQuest Worlds (AQW).
+
+Core Philosophy:
+- Zero Latency Overhead: In high-tier Ultra fights (such as Ultra Speaker or
+  Ultra Drakath), delays as small as 300ms–500ms cause total team wipes.
+  CoreLoneWolf completely replaces Skua's native GUI-bound timer engine with a
+  custom, dedicated multi-threaded skill engine ticking at 100ms.
+- Deterministic Master/Slave State Machine: Multi-account coordination requires
+  strict lockstep synchronization. CoreLoneWolf uses an asymmetric wire protocol
+  where `playerOne` acts as the authoritative leader, driving progression across
+  all clients via atomic flat-file IPC.
+- Unified Priority-Action Pipeline: Taunting, emergency damage reduction, healing,
+  and regular class rotations share a single, priority-driven execution pipeline
+  to prevent Global Cooldown (GCD) collisions or race conditions within a client.
+
+
+================================================================================
+2. IPC FILE TRANSPORT & WIRE PROTOCOL SPECIFICATION
+================================================================================
+
+2.1 Flat-File Inter-Process Communication (IPC) Mechanism
+---------------------------------------------------------
+Because each Skua client runs in a separate, isolated Windows OS process, memory
+pointers cannot be shared directly. CoreLoneWolf utilizes flat-file IPC stored at:
+`%AppData%\Roaming\Skua\Options\<syncFileName>` (e.g. `UltraSpeaker_LW.sync`).
+
+File I/O Reliability Measures:
+- `FileStream` configured with `FileMode.Append`, `FileAccess.Write`, and `FileShare.Read`.
+- Built-in exponential/polling retry loops (`ArmyFileRetryDelay = 100ms`) handling
+  file locking contention when multiple accounts write simultaneously.
+- Data sanitization via `IsSafeArmyField()` preventing delimiter injection.
+
+2.2 Wire Protocol Grammar & Record Structure
+--------------------------------------------
+Every message written to a sync file follows a strict, pipe-delimited schema:
+`<RECORD_TYPE>|<PROTOCOL_VERSION>|<SESSION_ID>|<PARAM_1>|...|<PARAM_N>`
+
+Fixed Protocol Version: `"1"`
+
+Supported Protocol Verbs:
+1. `RESET|1|<sessionId>`
+   - Emitted exclusively by `playerOne` at session start to wipe old data and
+     invalidate previous runs.
+2. `READY|1|<sessionId>|<username>|<launchToken>`
+   - Emitted by each client (Players 1..N) containing a freshly generated GUID
+     token (`armyLaunchToken`).
+3. `START|1|<sessionId>|<token1>|<token2>|<token3>|<token4>`
+   - Emitted by `playerOne` once all `READY` tokens are collected. Locks the
+     exact 4 active accounts into the session.
+4. `STEP|1|<sessionId>|<stepId>|<stepName>`
+   - Emitted by `playerOne` to establish a barrier checkpoint (e.g. `SETUP_DONE`,
+     `FIGHT_READY`, `START_FIGHT`, `BOSS_DEFEATED`, `FINISH`).
+5. `ARRIVED|1|<sessionId>|<stepId>|<username>`
+   - Emitted by each player reaching the step checkpoint.
+6. `CONTINUE|1|<sessionId>|<stepId>`
+   - Emitted by `playerOne` once all accounts have logged `ARRIVED`. Unblocks
+     the follower accounts simultaneously.
+7. `SIGNAL|1|<sessionId>|<signalName>|<username>`
+   - Broadcast channel for real-time combat events (e.g. `ULTRA_REQUIRED_X`,
+     `FIGHT_DEAD_X`, `FIGHT_ALIVE_X`, `RIGHTEOUS_SEAL_READY_X`).
+8. `STOP|1|<sessionId>|<reason>`
+   - Emitted by `playerOne` on fight completion (`COMPLETE`) or failure.
+
+2.3 Leader (playerOne) vs Follower (playerTwo..playerSeven) State Machine
+-----------------------------------------------------------------------
+The protocol implements an asymmetric barrier synchronization pattern:
+
+  [Leader: playerOne]                         [Followers: playerTwo..N]
+          |                                               |
+  1. Writes RESET & READY                         1. Writes READY (GUID Token)
+          |                                               |
+  2. Reads file until all READY tokens exist              |
+          |                                               |
+  3. Writes START (contains all tokens) --------> 2. Detects START with own token
+          |                                               |
+  4. Writes STEP (id, name) --------------------> 3. Detects matching STEP name
+          |                                               |
+  5. Writes ARRIVED (id)                          4. Writes ARRIVED (id)
+          |                                               |
+  6. Reads file until all ARRIVED exist                   |
+          |                                               |
+  7. Writes CONTINUE (id) ----------------------> 5. Detects CONTINUE (id)
+          |                                               |
+  8. Advances local step                          6. Advances local step
+
+2.4 Token Exchange, Session Validation & Desync Recovery
+--------------------------------------------------------
+- Roster Lockdown: If an extra bot or leftover process from an old run attempts
+  to participate, its token is not in the `START` record and its writes are
+  completely ignored.
+- Replaced Session Detection: If a client reads a `RESET` record with a newer
+  `sessionId`, it instantly halts execution to avoid cross-session desyncs.
+
+2.5 Distributed Heartbeats & Timestamp Synchronization
+------------------------------------------------------
+- `SendArmyTimestamp(signal, unixMilliseconds)`: Records exact millisecond
+  timestamps to the sync file.
+- `GetArmyTimestamp(signal, senderPlayerNumber)`: Used by follower accounts
+  to synchronize fight start times, entry delays, and timed taunt offsets.
+
+
+================================================================================
+3. LOW-LATENCY MULTI-THREADED COMBAT ENGINE
+================================================================================
+
+3.1 Dedicated OS Thread (SkillEngineWorker) vs Native Skua Timers
+-----------------------------------------------------------------
+Skua's built-in `Bot.Skills.Start()` executes on the main application/GUI thread
+using timer loops that introduce 300ms–800ms of lag per cast.
+
+CoreLoneWolf solves this:
+1. `ValidateFunctionBasedSkillsDisabled()`: Verifies Skua's native skill system
+   is stopped.
+2. `StartSkillEngine()`: Creates and starts a dedicated background OS thread:
+   `skillThread = new Thread(SkillEngineWorker) { IsBackground = true };`
+   `skillThread.Start();`
+
+3.2 Polling Intervals (100ms Base / 50ms Chrono Burst)
+------------------------------------------------------
+- Standard Tick Rate: `SkillPollDelay = 100ms`. Every 100ms, the engine checks
+  target existence, player life status, priority queues, and skill cooldowns.
+- High-Performance Chrono Burst Window: `CSSGunslingerFirePollDelay = 50ms`.
+  When Chrono Shadowhunter enters its "Gunslinger Stance" burst window, the loop
+  rate doubles to 50ms to maximize damage per second.
+
+3.3 Strict Global Cooldown (GCD) & Packet Safety
+------------------------------------------------
+- The engine uses `Bot.Skills.CanUseSkill(skill)` and `TryUseSkill(skill)` which
+  verifies server-side GCD availability before sending cast packets.
+- Implements `ordinarySkillsSuppressed` to pause regular attacks during critical
+  mechanic windows without killing the skill engine thread.
+
+
+================================================================================
+4. MULTI-TIER PRIORITY ACTION QUEUE SUBSYSTEM
+================================================================================
+The `SkillEngineWorker` processes combat decisions through a strict 8-tier
+priority hierarchy on every 100ms cycle:
+
+                               [100ms Tick]
+                                    |
+            +-----------------------v-----------------------+
+            | 1. Absolute Priority Taunt (Skill 5 / Item)   |
+            +-----------------------+-----------------------+
+                                    | (if none)
+            +-----------------------v-----------------------+
+            | 2. Immediate Taunt (Non-blocking check)       |
+            +-----------------------+-----------------------+
+                                    | (if none)
+            +-----------------------v-----------------------+
+            | 3. Pending Regular Taunt                      |
+            +-----------------------+-----------------------+
+                                    | (if none)
+            +-----------------------v-----------------------+
+            | 4. Absolute Priority Skill (e.g. AP Skill 4)  |
+            +-----------------------+-----------------------+
+                                    | (if none)
+            +-----------------------v-----------------------+
+            | 5. Priority Skill (Situational / Cleanse)     |
+            +-----------------------+-----------------------+
+                                    | (if none)
+            +-----------------------v-----------------------+
+            | 6. Targeted Priority Skill (Add targeting)    |
+            +-----------------------+-----------------------+
+                                    | (if none)
+            +-----------------------v-----------------------+
+            | 7. Limited-Use Priority Skill (Finite counts) |
+            +-----------------------+-----------------------+
+                                    | (if none)
+            +-----------------------v-----------------------+
+            | 8. Parameterized Class Rotation (Enum Modes)  |
+            +-----------------------------------------------+
+
+Detailed Queue Specifications:
+------------------------------
+4.1 Queue Level 1: Absolute Priority Taunt (`pendingAbsolutePriorityTauntMapId`)
+    - Highest priority in the entire system.
+    - Forces an immediate target switch (if needed) and casts Scroll of Enrage (Skill 5).
+    - Used for unskippable, fatal boss triggers (e.g. Warden 500k HP wipe, Speaker Truth/Listen).
+
+4.2 Queue Level 2: Immediate Taunt (`pendingImmediateTauntMapId`)
+    - Checks if Skill 5 is off cooldown; if ready, casts immediately and returns true.
+    - Used in rapid-polling boss loops (Tyndarius add taunting).
+
+4.3 Queue Level 3: Pending Regular Taunt (`pendingTauntMapId`)
+    - Queues an Enrage taunt to execute on the very next available GCD.
+
+4.4 Queue Level 4: Absolute Priority Skill (`pendingAbsolutePrioritySkill`)
+    - Bypasses normal rotation to cast a critical class ability (e.g. ArchPaladin's
+      `Righteous Seal` for 90% team damage reduction).
+
+4.5 Queue Level 5: Priority Skill (`pendingPrioritySkill`)
+    - Intercepts the rotation to cast a high-priority heal, cleanse, or buff.
+
+4.6 Queue Level 6: Targeted Priority Skill (`pendingTargetedPrioritySkill`)
+    - Switches target to a secondary entity (`TargetMapId`), casts the skill, and
+      instantly switches back to `ReturnMapId`.
+
+4.7 Queue Level 7: Limited-Use Priority Skill (`pendingLimitedPrioritySkill`)
+    - Executes a specified skill for a designated number of repetitions (`RemainingUses`),
+      then automatically releases the lock.
+
+4.8 Queue Level 8: Parameterized Class Rotation Modes (`SkillEngineMode`)
+    - Executes the underlying class rotation mode:
+      * `Normal`: Standard sequential cycle through `skillList`.
+      * `Strict`: Strict index-locked loop; will not advance until skill at index is cast.
+      * `Simple`: Non-blocking sequential cycle.
+      * `KingsEcho`: Mana-gated rotation preserving mana above `kingsEchoManaThreshold = 12`.
+      * `ArcanaInvoker`: Tarot card engine managing Fool, Judgement Day, and World cycles.
+      * `ChronoShadowHunterNormal` / `ChronoShadowHunterGunslinger`: Stance-aware burst engine.
+      * `Shaman`: Maintains Elemental Embrace aura with Skill 3 toggle management.
+      * `LightCasterHealing`: Suppresses attack skills to prioritize group heals during damage checks.
+      * `Guardian`: Spirit aura and healing loop.
+
+
+================================================================================
+5. CONSUMABLES, SCROLLS & POTIONS SUBSYSTEM
+================================================================================
+
+5.1 Automated Shop Routing & Gold Purchasing
+--------------------------------------------
+`PreparePotions(tonic, elixir, combatPotion)` automates consumable supply:
+1. Inventory Check: Checks if account already holds the required items.
+2. Bank Loading: If not in inventory, loads Bank, searches, and moves to inventory.
+3. Shop Purchasing: If missing from Bank, joins `/alchemyacademy` (Shop 2036) and
+   purchases the exact quantities with gold.
+
+Supported Potions:
+- Tonics: Fate Tonic, Sage Tonic, Body Tonic.
+- Elixirs: Potent Battle Elixir, Potent Malevolence Elixir, Potent Revitalize Elixir.
+- Combat Potions: Potent Honor Potion, Felicitous Philtre, Potent Revitalize Potion.
+
+5.2 Automated Scroll Crafting (Quests 2330, 2331, 2344)
+-------------------------------------------------------
+`PrepareScrolls(scrollName)` automates scroll production:
+- Scroll of Enrage (Quest 2330): Threshold = 80 scrolls (Max stack = 1000).
+- Scroll of Decay (Quest 2331): Threshold = 10 scrolls.
+- Scroll of Mystify (Quest 2344): Threshold = 10 scrolls.
+Execution:
+- Checks inventory count against threshold.
+- If below threshold, joins `/spellcraft`, purchases Arcane Quills (Shop 693) and
+  Spell Inks (Shop 549), and turns in the spellcraft quests in batches until stocked.
+
+5.3 In-Combat Tonic & Elixir Aura Maintenance
+---------------------------------------------
+- `MaintainPotion(potionName)`: The skill engine tracks active potion auras on the
+  player entity. If a Tonic or Elixir buff expires mid-fight, it automatically
+  re-casts the potion item from inventory.
+
+
+================================================================================
+6. FORGE ENHANCEMENT OPTIMIZER & RECURSIVE FALLBACK TREE
+================================================================================
+`PrepareEnhancements()` configures optimal Forge weapon, helm, and cape enhancements
+with dynamic inventory evaluation and recursive fallback trees.
+
+6.1 Inventory Inspection & Special Enhancement Resolution
+---------------------------------------------------------
+- Inspects player inventory for high-tier Forge enhancements.
+- Enhances Class with Base Enhancement (Wizard, Lucky, Healer, Fighter).
+- Enhances Helm (Forge, Vim, Examen, Anima).
+- Enhances Cape (Vainglory, Lament, Absolution, Forge).
+
+6.2 Recursive Fallback Chains
+-----------------------------
+If an account does not have endgame Forge enhancements unlocked, CoreLoneWolf
+walks down an automated fallback chain:
+
+Weapon Fallback Chains:
+- `Arcana's Concerto` -> `Ravenous` -> `Valiance` -> `Praxis` -> `Health Vamp`
+- `Elysium`           -> `Valiance` -> `Awe (Health Vamp / Mana Vamp)`
+- `Ravenous`          -> `Valiance` -> `Smite`   -> `Health Vamp`
+
+Cape Fallback Chains:
+- `Vainglory`  -> `Lament`     -> `Absolution` -> `Forge Cape` -> `Base Cape`
+- `Absolution` -> `Forge Cape` -> `Base Cape`
+
+
+================================================================================
+7. REAL-TIME FLASH PACKET DETECTION SUBSYSTEM
+================================================================================
+
+7.1 Event Listener Hooking & Packet Interception
+------------------------------------------------
+To achieve single-digit millisecond reaction times to boss cues, CoreLoneWolf
+hooks directly into Skua's network event handlers:
+- `Bot.Events.ExtensionPacketReceived`
+- `Bot.Events.PacketReceived`
+
+7.2 Command & Text Matching Engine
+----------------------------------
+- `StartPacketDetector(string[] commands, string[] texts)`:
+  Monitors incoming Flash packets matching specified commands (e.g. `ct` for chat/combat)
+  and text markers (e.g. `"animStr":"Attack2"`, `"animStr":"Charge"`, `"Abyss!"`,
+  `"I will make you see the truth."`).
+- When a match is detected:
+  * Increments `packetDetectionCount`.
+  * Captures the full raw JSON string into `packetSelectedPacket`.
+  * Optionally pauses ordinary skills if configured (`packetSkillPauseChoice`).
+
+7.3 Deterministic Reaction Timings
+----------------------------------
+Ultra scripts poll `HasPacketDetection(count)` on the main thread, allowing them
+to trigger instant taunts or defensive skills before the boss animation finishes.
+
+
+================================================================================
+8. DISTRIBUTED DEATH CONSENSUS & WIPE RESILIENCY
+================================================================================
+
+8.1 Alive / Dead State Broadcasting
+-----------------------------------
+Every account monitors its local health in the combat loop. When death occurs, it
+writes:
+`SIGNAL|1|<sessionId>|FIGHT_DEAD_<attempt>|<username>`
+Upon respawn, it writes:
+`SIGNAL|1|<sessionId>|FIGHT_ALIVE_<attempt>|<username>`
+
+8.2 Multi-Account Wipe Threshold (ShouldResetFight)
+---------------------------------------------------
+- During combat, all accounts call `ShouldResetFight(fightAttempt, deadPlayerThreshold = 2)`.
+- It scans the sync file's recent signals. If 2 or more accounts are dead at the same
+  time, the fight is determined to be unsalvageable.
+- `playerOne` writes `SIGNAL|1|<sessionId>|FIGHT_RESET_<attempt>|<leaderName>`.
+
+8.3 Safe Room Retreat & Reset Synchronization
+---------------------------------------------
+1. All accounts detect `FIGHT_RESET` and immediately kill their `SkillEngineWorker`.
+2. All accounts jump to `SafeCell,SafePad` (`Enter,Spawn`).
+3. The army synchronizes at `Sync("FIGHT_RESET_<attempt>_SAFE")` to ensure everyone
+   is fully healed and mana is restored before restarting the fight.
+4. If attempts reach `MaxFightAttempts = 3`, `playerOne` emits `ATTEMPTS_EXHAUSTED`
+   and advances the master queue to prevent infinite failure loops.
+
+
+================================================================================
+9. COMPREHENSIVE COMPARISON: CORELONEWOLF.CS VS COREENGINEV4.CS
+================================================================================
+
+9.1 Core Design Scope & Purpose
+-------------------------------
+- `CoreLoneWolf.cs`:
+  * Purpose-built specifically for **Ultra Boss raids** in 4-to-7 player coordinated
+    armies.
+  * Modularly decoupled: Boss scripts (like `UltraSpeaker_LW`) contain the raid
+    logic, while `CoreLoneWolf` provides the underlying engine (IPC, Skill Thread,
+    Potions, Enhancements, Packet Sniffing).
+- `CoreEnginev4.cs`:
+  * Monolithic, universal AQW game automation engine.
+  * Powers not only Ultra Bosses, but also 7-player Challenge Bosses (Azalith,
+    Kathool, The Beast), Void Dailies, story quests, and solo farming gauntlets.
+  * Contains over 4,200+ lines with massive switch-case blocks supporting 30+ classes.
+
+9.2 Threading Primitives & Loop Scheduling (Thread vs Task)
+-----------------------------------------------------------
+- `CoreLoneWolf.cs`:
+  * Uses a dedicated OS `System.Threading.Thread` (`SkillEngineWorker`) with
+    synchronous `Thread.Sleep(100)` / `Thread.Sleep(50)`.
+  * Thread lifecycle is managed via atomic volatile booleans (`skillEngineRunning`,
+    `skillEnginePaused`).
+  * Direct OS thread provides maximum execution priority and deterministic timing.
+- `CoreEnginev4.cs`:
+  * Uses C# Asynchronous Tasks (`Task.Run(() => SkillsAsync(_cts.Token))`).
+  * Scheduled on the .NET ThreadPool with `await Task.Delay(skillsDelay, token)`.
+  * Controlled via `CancellationTokenSource` (`_cts`).
+  * Better suited for modern async/await patterns across diverse modules.
+
+9.3 Taunt Execution Philosophy (Unified Priority Queue vs Dual-Thread Pulse Burst)
+----------------------------------------------------------------------------------
+This is the single most significant mechanical difference between the two systems:
+
+- `CoreLoneWolf.cs` (Unified Single-Thread Priority Queue):
+  * Taunting is handled **within the same thread** as regular class skills.
+  * The `SkillEngineWorker` checks `pendingAbsolutePriorityTauntMapId` and
+    `pendingTauntMapId` *before* evaluating class rotations.
+  * Advantage: Zero race conditions or GCD lockups between class abilities and taunts.
+  * Taunt Triggers: **Event/Threshold-driven** (e.g. boss drops below 500k HP,
+    or Flash packet detector catches animation string).
+
+- `CoreEnginev4.cs` + `UltraAsyncv4.cs` (Dual-Thread Pulse Clock + Burst Spam):
+  * **Dual-Thread Model**: `CoreEnginev4.SkillsAsync()` handles class rotations,
+    while `UltraAsyncv4.StartTauntLoop()` spawns a **completely separate thread**
+    dedicated purely to taunting.
+  * **5-Second Wall-Clock Pulse Grid (`UltraPulsev4`)**: Taunts fire on exact
+    mathematical time pulses calculated from a shared UTC start time:
+    `CurrentPulse = (DateTime.UtcNow - fightStart) / 5s`.
+    * Primary taunts at $t = 0s, 10s, 20s...$
+    * Secondary taunts at $t = 5s, 15s, 25s...$
+  * **60-Packet Burst Spam (`TauntPresses`)**: When a pulse arrives, `TauntPresses`
+    fires **60 rapid `Cast(5)` packets with 50ms spin-waits** to brute-force the
+    taunt through AQW server latency and animation locks.
+
+9.4 Class Logic Definition & Routing (Parameterized Presets vs Direct Introspection)
+-----------------------------------------------------------------------------------
+- `CoreLoneWolf.cs`:
+  * Uses `ClassPreset` objects defining ClassName, `Skills = new[] { 3, 4, 2, 1 }`,
+    BaseEnhancement, CapeEnhancement, HelmEnhancement, WeaponEnhancement, Fallbacks,
+    Tonic, Elixir, and CombatPotion.
+  * Rotation is controlled via `SkillEngineMode` enum (`Normal`, `Strict`, `Simple`,
+    `KingsEcho`, `ArcanaInvoker`, etc.).
+  * Boss-specific conditions are handled by the Boss script commanding the engine.
+- `CoreEnginev4.cs`:
+  * Inspects `Bot.Player.CurrentClass.Name` on every tick and executes dedicated
+    hardcoded switch methods (e.g. `KingsEcho()`, `ArchPaladinClass()`, `ShadowWeaverOfTimeClass()`).
+  * Embeds boss guards directly inside the class methods:
+    `if (NotUltraDage() && KolrLowHp() && !HasAura("Putrefaction", true)...)`
+  * Supports 30+ classes out of the box with zero preset configuration required.
+
+9.5 Error Handling, Throttling & FBS Management
+-----------------------------------------------
+- `CoreLoneWolf.cs`:
+  * Silences FBS by calling `ValidateFunctionBasedSkillsDisabled()`.
+  * Relies on atomic sync file verification and explicit error dialog logging.
+- `CoreEnginev4.cs`:
+  * Actively creates and updates `fbs_mute.sync` (`MuteFBS()`) to suppress external
+    Function-Based Skills plugins continuously during combat.
+  * Uses internal `ConcurrentDictionary` caching (`_cache`) and throttling (`_throttle`)
+    to manage rapid action calls.
+
+9.6 Side-by-Side Architectural Feature Matrix
+---------------------------------------------
+
++-----------------------------+-----------------------------+-----------------------------+
+| Feature                     | CoreLoneWolf.cs             | CoreEnginev4.cs             |
++-----------------------------+-----------------------------+-----------------------------+
+| Primary Focus               | 4-Player Ultra Raids        | Universal AQW Engine        |
+| Threading Implementation    | Dedicated OS `Thread`       | .NET ThreadPool `Task`      |
+| Polling Delay               | 100ms (50ms Chrono Burst)   | 100ms (`skillsDelay`)       |
+| Native Skua Skills Stopped  | Yes (`Bot.Skills.Stop()`)   | Yes (`Bot.Skills.Stop()`)   |
+| FBS Plugin Muting           | Pre-flight Validation       | Active `fbs_mute.sync`      |
+| Taunt Dispatch Architecture | Single-Thread Priority Flag | Dual-Thread Separate Task   |
+| Taunt Timing Model          | Event/HP Threshold Driven   | 5s Wall-Clock Pulse Grid    |
+| Taunt Packet Execution      | Single Priority GCD Cast    | 60-Packet Burst Spam (50ms) |
+| Class Definition Model      | Struct Presets & Enum Modes | Direct Class Introspection  |
+| Class Breadth               | 15+ Ultra-Tuned Presets     | 30+ Universal Classes       |
+| Consumable Management       | Auto-Buy, Bank & Crafting   | Integrated (`UltraPotions`) |
+| Enhancement Optimizer       | Recursive Fallback Trees    | Profile Context (`UltraEnh`)|
+| IPC Wire Protocol           | Strict Asymmetric Records   | Symmetric Consensus Barrier |
+| Wipe Detection              | 2-Player Dead Signal Count  | `UltraDeathv4` Background CTS|
++-----------------------------+-----------------------------+-----------------------------+
+
+
+================================================================================
+10. CONCLUSION & SUMMARY
+================================================================================
+Both `CoreLoneWolf.cs` and `CoreEnginev4.cs` are master-class implementations
+designed to overcome the inherent latency limitations of Skua's native GUI skill
+timers by implementing custom 100ms asynchronous combat loops.
+
+- Choose `CoreLoneWolf.cs` when executing **rigid, deterministic 4-player Ultra Boss
+  raids** that require strict lockstep master/slave synchronization, unskippable
+  priority taunt queues, and Flash packet event detection.
+- Choose `CoreEnginev4.cs` when building a **broad, versatile multi-account framework**
+  capable of handling Ultras, 7-player Challenge Bosses, Void Dailies, and general
+  item farming across dozens of class profiles using wall-clock pulse taunts and
+  symmetric peer-to-peer consensus.
+
+================================================================================
+                             END OF REPORT
+================================================================================

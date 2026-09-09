@@ -1,0 +1,54 @@
+====================================================================================================
+      ULTRA DAGE - VDK PRIORITY & SPECIALIZED ANTI-HEAL MECHANICS REPORT
+====================================================================================================
+Location: Scripts/Customv2/how/ultra_dage_vdk_mechanics_report.txt
+Target Scripts: 
+  - Scripts/UltrasLW/UltraDage_LW.cs
+  - Scripts/Customv2/UltrasDUCK/UltraDageDUCK.cs
+Boss: Ultra Dage (ultradage | Cell: Boss, Right | MapID: 1 | HP: 5,000,000)
+
+----------------------------------------------------------------------------------------------------
+1. VDK SLOT PRIORITY
+----------------------------------------------------------------------------------------------------
+In UltraDageDUCK.cs, DageSlots[0] will be prioritized as:
+  CandidateClasses: ["Verus DoomKnight", "King's Echo", "Legion Revenant"]
+This ensures that accounts owning Verus DoomKnight will auto-assign VDK first.
+
+----------------------------------------------------------------------------------------------------
+2. CRITICAL VDK SPECIALIZED ANTI-HEAL MECHANIC
+----------------------------------------------------------------------------------------------------
+In Ultra Dage, Dage's Noxious Decay aura inverts/penalizes active healing, healing Dage or wiping
+the party.
+
+Verus DoomKnight has a specialized interaction with Skill 2:
+- When "Unleashed Doom" self-aura is active, VDK's Skill 2 activates a secondary effect that heals VDK.
+- On Ultra Dage, this heal triggers Dage's Noxious Decay.
+- UltraDage_LW.cs handles this via:
+    blockedStrictSkill: reliableVerusDoomKnight ? 2 : 0,
+    blockedStrictSkillSelfAura: reliableVerusDoomKnight ? UnleashedDoomAura : string.Empty
+
+In UltraDageDUCK.cs, this will be bound directly to the class preset:
+    bool isVDK = string.Equals(preset.ClassName, "Verus DoomKnight", StringComparison.OrdinalIgnoreCase);
+    Duck.StartSkillEngine(
+        ...,
+        blockedStrictSkill: isVDK ? 2 : 0,
+        blockedStrictSkillSelfAura: isVDK ? UnleashedDoomAura : string.Empty
+    );
+
+----------------------------------------------------------------------------------------------------
+3. FULL MECHANICS VERIFICATION MATRIX
+----------------------------------------------------------------------------------------------------
+- Weapon Enhancement: Health Vamp enforced across all classes (Health Vamp auto-attacks bypass heal penalties).
+- Cape Enhancement: Vainglory on all classes (incoming heals disabled anyway).
+- Class Skill Overrides (omit active heal skills from rotation):
+  * ArchPaladin: { 3, 1, 4 } (omits Skill 2)
+  * StoneCrusher: { 2, 4, 1 } (omits Skill 3)
+  * Lord of Order: { 3, 1, 4 } (omits Skill 2)
+  * Legion Revenant: { 3, 4, 2, 1 }
+- Safe-Window Heals: HandleSafeHeal only executes Skill 2 on AP/LOO when Noxious Decay is NOT active.
+- Area Dodging: RunToArea listener drains A/B zone markers.
+- Scrolls:
+  * DPS & ArchPaladin: Scroll of Enrage (alternating Focus taunts)
+  * StoneCrusher: Scroll of Decay (casts on Dage heal packet)
+  * Lord of Order: Scroll of Mystify (fallback Scroll of Decay)
+====================================================================================================

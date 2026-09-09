@@ -1,0 +1,70 @@
+====================================================================================================
+           ULTRA DAGE - DUCK VS LW COMPARISON & REMEDIATION REPORT
+====================================================================================================
+Location: Scripts/Customv2/how/ultra_dage_duck_vs_lw_deep_dive.txt
+Target Scripts: 
+  - Scripts/UltrasLW/UltraDage_LW.cs
+  - Scripts/Customv2/UltrasDUCK/UltraDageDUCK.cs
+Boss: Ultra Dage (ultradage | Cell: Boss, Right | MapID: 1 | HP: 5,000,000)
+
+----------------------------------------------------------------------------------------------------
+1. EXECUTIVE SUMMARY & IDENTIFIED DISCREPANCIES
+----------------------------------------------------------------------------------------------------
+An in-depth semantic audit of UltraDageDUCK.cs compared to UltraDage_LW.cs revealed that
+UltraDageDUCK suffered from player indexing bugs when assigning scroll roles, taunt partnerships,
+and packet detectors:
+
+1. HARDCODED PLAYER NUMBER SCROLL AND TAUNT ASSIGNMENTS
+   - In UltraDageDUCK.cs:
+       isTaunter = Duck.IsArmyPlayer(1) || Duck.IsArmyPlayer(3);
+       if (Duck.IsArmyPlayer(2)) Duck.PrepareScrolls(DecayScroll);
+       else if (Duck.IsArmyPlayer(1) || Duck.IsArmyPlayer(3)) Duck.PrepareScrolls(EnrageScroll);
+       else { Duck.PrepareScrolls(MystifyScroll); Duck.PrepareScrolls(DecayScroll); }
+   - In dynamic multi-client setups, accounts are sorted alphabetically:
+     * If StoneCrusher is Player 1 alphabetically: SC was marked as `isTaunter`, equipped `Scroll of Enrage`,
+       and attempted to alternate focus taunts instead of casting `Scroll of Decay` on Dage's heal window!
+     * If Lord of Order was Player 3 alphabetically: LOO equipped `Scroll of Enrage` instead of `Scroll of Mystify`.
+     * If ArchPaladin was Player 4 alphabetically: AP was treated as Player 4, equipped `Scroll of Mystify`,
+       and never taunted!
+     * If DPS was Player 2 alphabetically: DPS equipped `Scroll of Decay` and never taunted Dage!
+   - Result: Dage was not taunted, focus auras dropped, Dage's Noxious Decay nuked the team,
+     and Dage healed back to full HP continuously.
+
+2. HARDCODED TAUNT PARTNERSHIP RESOLUTION (FightEnrageTaunter)
+   - `partnerPlayerNumber` assumed `1` and `3` regardless of which physical player had `DPS` or `ArchPaladin`.
+   - Partner dead/alive detection and army signal listening desynced whenever player numbers did not match
+     the legacy fixed layout.
+
+3. HARDCODED DECAY PACKET DETECTOR & CASTING
+   - In `StartDecayDetector` and `HandleDecayDetections`:
+       bool detectsDecay = Duck.IsArmyPlayer(2) || (Duck.IsArmyPlayer(4) && !mystifyMode);
+   - If StoneCrusher was Player 1 or 3, SC never started the packet detector and never cast `Scroll of Decay`.
+
+====================================================================================================
+2. CORRECT ARCHITECTURAL DESIGN IN DUCK
+====================================================================================================
+Roles, scrolls, taunt loops, and packet detection must be mapped directly to assigned classes:
+
+1. Class Role Flags:
+   - `isArchPaladin`: `preset.ClassName == "ArchPaladin"`
+   - `isLordOfOrder`: `preset.ClassName == "Lord of Order"`
+   - `isStoneCrusher`: `preset.ClassName == "StoneCrusher"`
+   - `isDPS`: Non-AP, non-LOO, non-SC (e.g. `Legion Revenant`, `Chaos Slayer`, `Verus DoomKnight`, `King's Echo`)
+
+2. Scroll Assignments & Taunt Roles:
+   - `isTaunter`: `isDPS || isArchPaladin`
+   - `isOpeningTauntOwner`: `isDPS` (Taunts at fight start & opens Focus alternation)
+   - `ArchPaladin`: Secondary taunter (Alternates Focus taunts with DPS)
+   - `StoneCrusher`: Primary Decay holder (Casts `Scroll of Decay` on decay packet detections)
+   - `Lord of Order`: Scroll holder (`Scroll of Mystify` or fallback `Scroll of Decay`)
+   - `if (isTaunter) preset.CombatPotion = null;`
+
+3. Dynamic Taunt Partner Resolution:
+   - `isDPS` resolves `ArchPaladin`'s player index from `assignResult.PlayerNumberToClass`.
+   - `ArchPaladin` resolves `DPS`'s player index from `assignResult.PlayerNumberToClass`.
+
+4. Health Vamp & Vainglory Baseline:
+   - `preset.WeaponEnhancement = WeaponSpecial.Health_Vamp;`
+   - `preset.CapeEnhancement = CapeSpecial.Vainglory;`
+   - Direct heals omitted from ordinary skill rotation for all support classes.
+====================================================================================================

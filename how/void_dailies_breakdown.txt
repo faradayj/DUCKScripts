@@ -1,0 +1,118 @@
+================================================================================
+          VOID DAILIES (QUEST 9091 & QUEST 8653) COMPLETE BREAKDOWN
+                      Reference: Customv2/Ultrasv4/VoidDailiesv4.cs
+================================================================================
+
+1. OVERVIEW
+--------------------------------------------------------------------------------
+VoidDailies coordinates two major daily quests in AQW:
+  1. Quest 9091: "Wrong Turn at Voidbuquerque" (Daily Nulgath Resource Farm)
+  2. Quest 8653: "The Encroaching Shadows" (Daily Shadow/Void Insignia Farm)
+
+IMPORTANT NOTE ON VOID NERFKITTEN:
+  - Void Nerfkitten is NOT a requirement for Quest 9091 (Wrong Turn at Voidbuquerque).
+  - Quest 9091 only requires 3 Void Boss Essences: Nightbane, Xyfrag, and Flibbitiestgibbet.
+  - Void Nerfkitten has its own separate quest (Quest 9415: "Nerfkitten's Fancy").
+
+
+2. QUEST DETAILS, IDS & ITEM REQUIREMENTS
+--------------------------------------------------------------------------------
+
+A. QUEST 9091: "Wrong Turn at Voidbuquerque"
+   - Quest ID: 9091 (Daily)
+   - Requirements (3 Items):
+     1. Nightbane's ??? Essence (x1)
+        - Item ID: 73862
+        - Monster: Void Nightbane (Boss ID: 1)
+        - Map: voidnightbane
+     2. Xyfrag's ??? Essence (x1)
+        - Item ID: 73863
+        - Monster: Void Xyfrag (Boss ID: 1)
+        - Map: voidxyfrag
+     3. Flibbitiestgibbet's ??? Essence (x1)
+        - Item ID: 73865
+        - Monster: Void Flibbitiestgibbet (Boss ID: 1)
+        - Map: voidflibbi
+
+   - Choice Reward Selection (Select 1 per day):
+     - Blood Gem of the Archfiend (Item ID: 22332) [Default / Standard]
+     - Totem of Nulgath (Item ID: 5357)
+     - Gem of Nulgath (Item ID: 6136)
+     - Dark Crystal Shard (Item ID: 4770)
+     - Diamond of Nulgath (Item ID: 4771)
+     - Tainted Gem (Item ID: 4769)
+
+B. QUEST 8653: "The Encroaching Shadows"
+   - Quest ID: 8653 (Daily)
+   - Requirements (3 Items):
+     1. Flibbitigiblets (x1)
+        - Item ID: 70054
+        - Monster: Void Flibbitiestgibbet (Boss ID: 1)
+        - Map: voidflibbi
+     2. Glacial Pinion (x1)
+        - Item ID: 70052
+        - Monster: Warlord Icewing (Boss ID: 1)
+        - Map: icewing
+     3. Hydra Eyeball (x3)
+        - Item ID: 70053
+        - Monster: Hydra Head 90
+        - Map: hydrachallenge (Private room instance)
+
+
+3. BACK-TO-BACK EXECUTION FLOW
+--------------------------------------------------------------------------------
+
+STAGE 0: PRE-FLIGHT & INVENTORY PREPARATION
+  1. Unbank and blacklist all required drops from being banked:
+     - "Nightbane's ??? Essence", "Xyfrag's ??? Essence", "Flibbitiestgibbet's ??? Essence"
+     - "Flibbitigiblets", "Glacial Pinion", "Hydra Eyeball"
+     - Selected Nulgath Reward item
+  2. Daily Completion Check:
+     - If both 9091 and 8653 are already daily completed across the army, exit early.
+  3. Quest Acceptance:
+     - Accept Quest 9091 if incomplete.
+     - Accept Quest 8653 if incomplete.
+  4. Register all drop names and item IDs via Core.AddDrop / Bot.Drops.Add.
+
+STAGE 1: ARMY CHALLENGE BOSS GAUNTLET (7 Players / Party Lockstep Sync)
+  The army executes the shared bosses in lockstep:
+
+  Step 1: Void Xyfrag (/join voidxyfrag)
+    - Target: Void Xyfrag
+    - Objective: Obtain 1x "Xyfrag's ??? Essence" (Quest 9091).
+    - Mechanics: 7-player auto-assignment, slime stack cleansing.
+
+  Step 2: Void Flibbitiestgibbet (/join voidflibbi)
+    - Target: Void Flibbitiestgibbet
+    - Objective: Obtain 1x "Flibbitiestgibbet's ??? Essence" (Quest 9091)
+                 AND 1x "Flibbitigiblets" (Quest 8653).
+    - Dual drop pickup: Both quest items drop simultaneously upon defeat.
+
+  Step 3: Void Nightbane (/join voidnightbane)
+    - Target: Void Nightbane
+    - Objective: Obtain 1x "Nightbane's ??? Essence" (Quest 9091).
+    - Mechanics: 7-player auto-assignment, rapid burst / taunt rotation.
+
+  Step 4: Warlord Icewing (/join icewing)
+    - Target: Warlord Icewing
+    - Objective: Obtain 1x "Glacial Pinion" (Quest 8653).
+    - Mechanics: Multi-player nuke / high physical damage mitigation.
+
+STAGE 2: INDEPENDENT / SOLO FARM PHASE
+  Once the 4 synchronized group bosses are defeated, the army transitions to the independent solo phase:
+
+  Step 5: Hydra Challenge (/join hydrachallenge-9999999)
+    - Target: Hydra Head 90
+    - Objective: Farm 3x "Hydra Eyeball" (Quest 8653).
+    - Class: 100% Dodge / Solo Class (e.g., Yami no Ronin, Chrono, or high-sustain solo).
+    - Independent: Accounts farm their own private hydrachallenge room without blocking others.
+
+STAGE 3: QUEST TURN-IN & REWARD RESOLUTION
+  1. Quest 9091 (Wrong Turn at Voidbuquerque):
+     - Check: If Bot.Quests.CanComplete(9091) -> EnsureComplete(9091, rewardItemId).
+     - Reward claimed (e.g., Blood Gem of the Archfiend x1).
+  2. Quest 8653 (The Encroaching Shadows):
+     - Check: If Bot.Quests.CanComplete(8653) -> EnsureComplete(8653).
+     - Shadow rewards claimed.
+  3. Cleanse state and return to House.
+================================================================================
