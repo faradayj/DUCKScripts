@@ -1,4 +1,4 @@
-﻿/*
+/*
 name: Ultra Batara Kala DUCK
 description: Four-player CoreDUCK Army script for Ultra Batara Kala (Kala Insignia).
 tags: ultra, kala, batara kala, army, coreduck, daily
@@ -17,11 +17,6 @@ using Skua.Core.Options;
 
 public class UltraBataraKalaDUCK
 {
-    public enum ArmyComposition
-    {
-        Default,
-    }
-
     private enum FightResult
     {
         Continue,
@@ -59,10 +54,8 @@ public class UltraBataraKalaDUCK
     private string playerAlias = string.Empty;
     private bool isTaunter;
     private int privateRoomNumber = DefaultPrivateRoomNumber;
-    private ArmyComposition armyComposition = ArmyComposition.Default;
     private bool masterMode;
     private UltraRunResult runResult = UltraRunResult.Failed;
-    private DuckAssignmentResult? currentAssignResult;
 
     public string OptionsStorage = "UltraBataraKalaDUCK";
     public bool DontPreconfigure = true;
@@ -129,8 +122,6 @@ public class UltraBataraKalaDUCK
         if (assignResult == null)
             return;
 
-        currentAssignResult = assignResult;
-
         if (!Duck.StartArmySyncDynamic(SyncFileName, assignResult.DiscoveredPlayers))
             return;
 
@@ -163,9 +154,11 @@ public class UltraBataraKalaDUCK
             return;
 
         Duck.EnsureAlive(15);
+        Duck.FileLog($"{playerAlias} joining {StagingMap}-{privateRoomNumber} after defeat.", LogPrefix);
         Duck.JoinRoom(StagingMap, privateRoomNumber, StagingCell, StagingPad);
-        Duck.FileLog($"{playerAlias} turned in Ultra Kala quest ({UltraQuestId}).", LogPrefix);
+        Duck.FileLog($"{playerAlias} completing Ultra Kala quest ({UltraQuestId}).", LogPrefix);
         Duck.CompleteUltraQuest(UltraQuestId);
+        Duck.FileLog($"{playerAlias} completed Ultra Kala quest ({UltraQuestId}).", LogPrefix);
 
         if (Bot.ShouldExit || !Sync("FINISH"))
             return;
@@ -188,6 +181,7 @@ public class UltraBataraKalaDUCK
         )
         {
             // 1. Gather in Yulgar for safe potion, scroll equipping, and party prebuffing
+            Duck.FileLog($"{playerAlias} gathering in {StagingMap}-{privateRoomNumber} for attempt {fightAttempt}.", LogPrefix);
             Duck.JoinRoom(StagingMap, privateRoomNumber, StagingCell, StagingPad);
 
             if (!PrepareSafeRoom(preset) || !Sync("FIGHT_READY"))
@@ -197,11 +191,12 @@ public class UltraBataraKalaDUCK
             try
             {
                 // 2. Simultaneous jump into ultrakala with full buffs already active
+                Duck.FileLog($"{playerAlias} joining {MapName}-{privateRoomNumber} for attempt {fightAttempt}.", LogPrefix);
                 Duck.JoinRoom(MapName, privateRoomNumber, FightCell, FightPad);
-                Duck.JumpToMonsterCell(BossName);
+                Duck.FileLog($"{playerAlias} entered {MapName}-{privateRoomNumber}.", LogPrefix);
 
-                if (Bot.ShouldExit || !Sync("START_FIGHT"))
-                    return false;
+                Duck.JumpToMonsterCell(BossName);
+                Duck.FileLog($"{playerAlias} jumped to {BossName} cell for attempt {fightAttempt}.", LogPrefix);
 
                 Duck.FileLog($"{playerAlias} started fight attempt {fightAttempt}.", LogPrefix);
                 result = Fight(preset, fightAttempt);
@@ -218,11 +213,12 @@ public class UltraBataraKalaDUCK
 
                 if (Duck.VerifyArmyKillCredit(fightAttempt, CreditCheck, 4, LogPrefix))
                 {
-                    Duck.FileLog($"{playerAlias} defeated {BossName} on attempt {fightAttempt}.", LogPrefix);
+                    Duck.FileLog($"{playerAlias} confirmed kill credit for {BossName} on attempt {fightAttempt}.", LogPrefix);
                     return true;
                 }
 
                 Core.Logger($"{LogPrefix} One or more players missed kill credit on attempt {fightAttempt}. Retrying fight with entire army...");
+                Duck.FileLog($"{playerAlias} missed kill credit on attempt {fightAttempt}. Resetting fight...", LogPrefix);
                 if (!HandleFightReset(fightAttempt))
                     return false;
 
@@ -293,117 +289,162 @@ public class UltraBataraKalaDUCK
 
     private FightResult Fight(ClassPreset preset, int fightAttempt)
     {
-        Duck.StartSkillEngine(
-            preset.Skills,
-            playerAlias,
-            false,
-            LogPrefix,
-            preset.SkillMode
-        );
-        Core.Logger($"{LogPrefix} {playerAlias} started fighting {BossName}.");
-
-        // Give initial attack command to acquire target
-        Bot.Combat.Attack(BossName);
-        Bot.Sleep(300);
-
-        while (!Bot.ShouldExit)
+        try
         {
-            if (Bot.TempInv.Contains(BossDefeatedTemp) || (!Duck.IsMonsterAlive(BossName) && Duck.GetMonsterHP(BossName) <= 0))
+            Duck.StartSkillEngine(
+                preset.Skills,
+                playerAlias,
+                isTaunter,
+                LogPrefix,
+                preset.SkillMode
+            );
+            Core.Logger($"{LogPrefix} {playerAlias} started fighting {BossName}.");
+
+            // Give initial attack command to acquire target
+            Bot.Combat.Attack(BossName);
+            Bot.Sleep(300);
+
+            while (!Bot.ShouldExit)
             {
-                // Verify monster is actually gone
-                Bot.Sleep(300);
-                if (Bot.TempInv.Contains(BossDefeatedTemp) || !Duck.IsMonsterAlive(BossName))
-                    break;
-            }
-
-            if (Duck.ShouldResetFight(fightAttempt))
-            {
-                Duck.StopSkillEngine();
-                return FightResult.Reset;
-            }
-
-            if (!Bot.Player.Alive)
-            {
-                Core.Logger($"{LogPrefix} {playerAlias} died.");
-                Duck.FileLog($"{playerAlias} died during fight attempt {fightAttempt}.", LogPrefix);
-
-                while (!Bot.ShouldExit && !Bot.Player.Alive)
-                {
-                    if (Duck.ShouldResetFight(fightAttempt))
-                    {
-                        Duck.StopSkillEngine();
-                        return FightResult.Reset;
-                    }
-                    Bot.Sleep(RespawnPollDelay);
-                }
-
-                if (Bot.ShouldExit)
-                {
-                    Duck.StopSkillEngine();
-                    return FightResult.Stopped;
-                }
-
                 if (Bot.TempInv.Contains(BossDefeatedTemp) || (!Duck.IsMonsterAlive(BossName) && Duck.GetMonsterHP(BossName) <= 0))
-                    break;
+                {
+                    // Verify monster is actually gone
+                    Bot.Sleep(300);
+                    if (Bot.TempInv.Contains(BossDefeatedTemp) || !Duck.IsMonsterAlive(BossName))
+                        break;
+                }
 
                 if (Duck.ShouldResetFight(fightAttempt))
                 {
-                    Duck.StopSkillEngine();
                     return FightResult.Reset;
                 }
 
-                Core.Logger($"{LogPrefix} {playerAlias} respawned.");
+                if (!Bot.Player.Alive)
+                {
+                    Core.Logger($"{LogPrefix} {playerAlias} died.");
+                    Duck.FileLog($"{playerAlias} died during fight attempt {fightAttempt}.", LogPrefix);
 
-                Duck.JumpToMonsterCell(BossName);
+                    while (!Bot.ShouldExit && !Bot.Player.Alive)
+                    {
+                        if (Duck.ShouldResetFight(fightAttempt))
+                        {
+                            return FightResult.Reset;
+                        }
+                        Bot.Sleep(RespawnPollDelay);
+                    }
 
-                continue;
+                    if (Bot.ShouldExit)
+                    {
+                        return FightResult.Stopped;
+                    }
+
+                    if (Bot.TempInv.Contains(BossDefeatedTemp) || (!Duck.IsMonsterAlive(BossName) && Duck.GetMonsterHP(BossName) <= 0))
+                        break;
+
+                    if (Duck.ShouldResetFight(fightAttempt))
+                    {
+                        return FightResult.Reset;
+                    }
+
+                    Core.Logger($"{LogPrefix} {playerAlias} respawned.");
+                    Duck.FileLog($"{playerAlias} respawned.", LogPrefix);
+
+                    if (!IsInFightCell())
+                    {
+                        Duck.JumpToMonsterCell(BossName);
+                        Duck.FileLog($"{playerAlias} jumped to {BossName} cell after respawn.", LogPrefix);
+                    }
+
+                    continue;
+                }
+
+                Duck.MaintainTarget(BossName);
+                Bot.Sleep(FightPollDelay);
             }
 
-            Duck.MaintainTarget(BossName);
-            Bot.Sleep(FightPollDelay);
+            if (Duck.ShouldResetFight(fightAttempt))
+                return FightResult.Reset;
+
+            return (Bot.TempInv.Contains(BossDefeatedTemp) || !Duck.IsMonsterAlive(BossName))
+                ? FightResult.Defeated
+                : FightResult.Stopped;
         }
-
-        Duck.StopSkillEngine();
-
-        if (Duck.ShouldResetFight(fightAttempt))
-            return FightResult.Reset;
-
-        return (Bot.TempInv.Contains(BossDefeatedTemp) || !Duck.IsMonsterAlive(BossName))
-            ? FightResult.Defeated
-            : FightResult.Stopped;
+        finally
+        {
+            Duck.StopSkillEngine();
+        }
     }
 
     private bool HandleFightReset(int fightAttempt)
     {
+        Duck.FileLog($"{playerAlias} executing fight reset for attempt {fightAttempt}.", LogPrefix);
         Duck.StopSkillEngine();
         Bot.Combat.CancelTarget();
 
         while (!Bot.ShouldExit && !Bot.Player.Alive)
         {
+            Duck.ShouldResetFight(fightAttempt);
             Bot.Sleep(RespawnPollDelay);
         }
 
         if (Bot.ShouldExit)
             return false;
 
+        Duck.ShouldResetFight(fightAttempt);
         Core.Logger($"{LogPrefix} {playerAlias} retreating to Yulgar staging room after attempt {fightAttempt}.");
         Duck.FileLog($"{playerAlias} retreating to Yulgar staging room after attempt {fightAttempt}.", LogPrefix);
 
         Duck.JoinRoom(StagingMap, privateRoomNumber, StagingCell, StagingPad);
+
+        if (!IsInStagingRoom())
+        {
+            Core.Logger(
+                $"{LogPrefix} {playerAlias} could not reach the Yulgar staging room after reset.",
+                "HandleFightReset",
+                messageBox: !masterMode,
+                stopBot: !masterMode
+            );
+            return false;
+        }
+
         return Sync($"FIGHT_RESET_{fightAttempt}_SAFE");
     }
 
     private void StopArmyAfterFailedAttempts()
     {
+        Duck.FileLog($"{playerAlias} failed after {MaxFightAttempts} fight attempts.", LogPrefix);
+        if (Duck.IsArmyPlayer(1))
+            Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
+        else
+            Duck.SyncArmy("STOP_CHECK");
+
         Core.Logger(
-            $"{LogPrefix} failed after {MaxFightAttempts} attempts.",
-            LogPrefix,
-            messageBox: true,
-            stopBot: true
+            $"{LogPrefix} failed after {MaxFightAttempts} fight attempts.",
+            "RunFightAttempts",
+            messageBox: !masterMode,
+            stopBot: !masterMode
         );
-        Duck.FileLog($"{playerAlias} exhausted all {MaxFightAttempts} attempts.", LogPrefix);
-        Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
     }
 
-    private bool Sync(string stepName) => Duck.SyncArmy(stepName);
+    private bool IsInStagingRoom() =>
+        string.Equals(Bot.Map.Name, StagingMap, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(Bot.Player.Cell, StagingCell, StringComparison.OrdinalIgnoreCase);
+
+    private bool IsInFightCell() =>
+        string.Equals(Bot.Map.Name, MapName, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(Bot.Player.Cell, FightCell, StringComparison.OrdinalIgnoreCase);
+
+    private bool Sync(string step)
+    {
+        Duck.FileLog($"{playerAlias} syncing on {step}...", LogPrefix);
+        Core.Logger($"{LogPrefix} {playerAlias} entering {step}.");
+
+        bool success = Duck.SyncArmy(step);
+        Duck.FileLog($"{playerAlias} sync {step} => {(success ? "SUCCESS" : "TIMEOUT/FAILED")}", LogPrefix);
+        if (!success)
+            return false;
+
+        Core.Logger($"{LogPrefix} {playerAlias} continued from {step}.");
+        return true;
+    }
 }
