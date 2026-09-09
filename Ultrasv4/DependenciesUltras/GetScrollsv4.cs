@@ -1,11 +1,11 @@
-/*
+﻿/*
 name: GetScrollsv4
 description: Provides methods for acquiring combat scrolls (Enrage, Decay).
 tags: ultra,scrolls,enrage,decay
 */
 
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
 

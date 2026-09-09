@@ -1,4 +1,4 @@
-================================================================================
+﻿================================================================================
 ================================================================================
            ALL ULTRAS LONEWOLF (0AllUltras_LW.cs) - COMPLETE TECHNICAL ARCHITECTURE
                        AND DEEP-DIVE IMPLEMENTATION GUIDE
@@ -10,7 +10,7 @@ Primary Dependencies: Scripts/UltrasLW/CoreLoneWolf.cs
                       Scripts/CoreBots.cs
                       Scripts/CoreAdvanced.cs
                       11 Individual Ultra Boss Modules (Scripts/UltrasLW/*)
-Output Documentation: Scripts/Customv2/how/0AllUltras_LW_How_It_Works.txt
+Output Documentation: Scripts/DUCKScripts/how/0AllUltras_LW_How_It_Works.txt
 
 
 ================================================================================

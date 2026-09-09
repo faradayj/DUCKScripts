@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: All Ultras DUCK
 description: Zero-config auto-assigned runner for all 12 DUCK Ultra scripts.
 tags: ultra, army, coreduck, master
@@ -6,19 +6,19 @@ tags: ultra, army, coreduck, master
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/UltrasDUCK/CoreDUCK.cs
-//cs_include Scripts/Customv2/UltrasDUCK/Dailies/UltraEzrajalDUCK.cs
-//cs_include Scripts/Customv2/UltrasDUCK/Dailies/UltraWardenDUCK.cs
-//cs_include Scripts/Customv2/UltrasDUCK/Dailies/UltraEngineerDUCK.cs
-//cs_include Scripts/Customv2/UltrasDUCK/Dailies/UltraTyndariusDUCK.cs
-//cs_include Scripts/Customv2/UltrasDUCK/UltraDrakathDUCK.cs
-//cs_include Scripts/Customv2/UltrasDUCK/UltraDragoDUCK.cs
-//cs_include Scripts/Customv2/UltrasDUCK/UltraNulgathDUCK.cs
-//cs_include Scripts/Customv2/UltrasDUCK/UltraDageDUCK.cs
-//cs_include Scripts/Customv2/UltrasDUCK/UltraDarkonDUCK.cs
-//cs_include Scripts/Customv2/UltrasDUCK/UltraGramielDUCK.cs
-//cs_include Scripts/Customv2/UltrasDUCK/UltraSpeakerDUCK.cs
-//cs_include Scripts/Customv2/UltrasDUCK/Dailies/UltraBataraKalaDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/Dailies/UltraEzrajalDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/Dailies/UltraWardenDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/Dailies/UltraEngineerDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/Dailies/UltraTyndariusDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/UltraDrakathDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/UltraDragoDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/UltraNulgathDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/UltraDageDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/UltraDarkonDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/UltraGramielDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/UltraSpeakerDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/Dailies/UltraBataraKalaDUCK.cs
 using System;
 using System.Collections.Generic;
 using Skua.Core.Interfaces;

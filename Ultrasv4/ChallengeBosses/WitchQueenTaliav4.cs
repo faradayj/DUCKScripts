@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Witch Queen Talia v4
 description: Witch Queen Talia helper for army farming Witch Princess' Hat (Quest 10824) using V4 Orchestration.
 tags: Ultra, Talia, Witch Queen Talia, v4, Witch Princess' Hat
@@ -8,13 +8,13 @@ tags: Ultra, Talia, Witch Queen Talia, v4, Witch Princess' Hat
 //cs_include Scripts/CoreFarms.cs
 //cs_include Scripts/CoreAdvanced.cs
 //cs_include Scripts/CoreStory.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraGeneralv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraEnhancementsv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraPotionsv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraCustomClassSyncv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraWaitForArmyv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraGeneralv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraEnhancementsv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraPotionsv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraCustomClassSyncv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraWaitForArmyv4.cs
 
 using System;
 using System.IO;

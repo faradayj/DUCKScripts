@@ -1,7 +1,7 @@
-====================================================================================================
+﻿====================================================================================================
            EXHAUSTIVE CODE-LEVEL BREAKDOWN OF ULTRASPEAKER_LW.CS (EVERY LAST MECHANIC & LINE)
 ====================================================================================================
-File Location: Scripts/Customv2/how/ultra_speaker_lw_complete_breakdown.txt
+File Location: Scripts/DUCKScripts/how/ultra_speaker_lw_complete_breakdown.txt
 Source File: Scripts/UltrasLW/UltraSpeaker_LW.cs
 Associated Files: Scripts/UltrasLW/CoreLoneWolf.cs, Scripts/CoreBots.cs
 

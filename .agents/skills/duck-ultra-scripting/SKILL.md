@@ -1,4 +1,4 @@
----
+﻿---
 name: duck-ultra-scripting
 description: >-
   Architectural manual, design patterns, and audit rules for writing, editing, and debugging
@@ -85,7 +85,7 @@ When used in cyclic rotations:
 
 Because multi-client army sessions run across background/minimized windows without visible Skua console UI:
 - Every DUCK script **MUST** call `Duck.FileLog(message, LogPrefix)` at all lifecycle checkpoints.
-- `Duck.FileLog` writes timestamped, user-stamped entries to `Scripts/Customv2/Logs/duck_army.log`.
+- `Duck.FileLog` writes timestamped, user-stamped entries to `Scripts/DUCKScripts/Logs/duck_army.log`.
 
 **Required FileLog Checkpoints:**
 1. **Script Start**: `Duck.FileLog($"Started as {playerAlias} in room {privateRoomNumber}.", LogPrefix);`
@@ -165,4 +165,4 @@ Target: **0 Compilation Errors**.
 
 - [Code Patterns & Recipes](file:///C:/Users/farad/AppData/Roaming/Skua/Scripts/.agents/skills/duck-ultra-scripting/references/patterns.md): Concrete implementations of opener patterns, taunts, zone movement, and continuous item farming.
 - [Pre-Flight Audit Checklist](file:///C:/Users/farad/AppData/Roaming/Skua/Scripts/.agents/skills/duck-ultra-scripting/references/checklist.md): 12-point audit checklist for reviewing DUCK scripts.
-- [Master Architecture Guide](file:///C:/Users/farad/AppData/Roaming/Skua/Scripts/Customv2/how/ultra_framework_guide.txt): Comprehensive 1800+ line reference manual for all 24 AQW Ultra bosses.
+- [Master Architecture Guide](file:///C:/Users/farad/AppData/Roaming/Skua/Scripts/DUCKScripts/how/ultra_framework_guide.txt): Comprehensive 1800+ line reference manual for all 24 AQW Ultra bosses.

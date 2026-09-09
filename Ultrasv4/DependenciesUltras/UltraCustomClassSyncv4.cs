@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: null
 description: null
 tags: null
@@ -6,7 +6,7 @@ tags: null
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
 
 using System;
 using System.Collections.Generic;

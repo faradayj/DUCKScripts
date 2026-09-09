@@ -1,15 +1,15 @@
-/*
+﻿/*
 name: Do Ultras and Dailies and Challenge Bosses
 description: Runs all ultras, dailies, and challenge bosses.
 tags: ultras,dailies,challenge bosses,all
 */
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
 //cs_include Scripts/CoreBots.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraWaitForArmyv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraWaitForArmyv4.cs
 
-//cs_include Scripts/Customv2/Ultrasv4/DoAllUltrasv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesDailies/DoAllChallengeBossesv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DoAllUltrasv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesDailies/DoAllChallengeBossesv4.cs
 //cs_include Scripts/Dailies/0AllDailies.cs
 
 using Skua.Core.Interfaces;

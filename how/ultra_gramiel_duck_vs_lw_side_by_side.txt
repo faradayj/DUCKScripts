@@ -1,9 +1,9 @@
-====================================================================================================
+﻿====================================================================================================
            ULTRA GRAMIEL: ULTRAGRAMIELDUCK.CS VS ULTRAGRAMIEL_LW.CS FORENSIC COMPARISON
 ====================================================================================================
-Location: Scripts/Customv2/how/ultra_gramiel_duck_vs_lw_side_by_side.txt
+Location: Scripts/DUCKScripts/how/ultra_gramiel_duck_vs_lw_side_by_side.txt
 Files Compared:
-  1. Scripts/Customv2/UltrasDUCK/UltraGramielDUCK.cs
+  1. Scripts/DUCKScripts/UltrasDUCK/UltraGramielDUCK.cs
   2. Scripts/UltrasLW/UltraGramiel_LW.cs
 
 ----------------------------------------------------------------------------------------------------

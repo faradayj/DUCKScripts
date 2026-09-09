@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Core DUCK
 description: Shared combat mechanics for LoneWolf Ultra scripts.
 tags: core, duck, ultra
@@ -8713,7 +8713,7 @@ public class CoreDUCK
     private static readonly string DuckLogDir = Path.Combine(
         ClientFileSources.SkuaDIR,
         "Scripts",
-        "Customv2",
+        "DUCKScripts",
         "Logs"
     );
     private static readonly string DuckLogFile = Path.Combine(DuckLogDir, "duck_army.log");

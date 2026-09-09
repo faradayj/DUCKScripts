@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: The Beast DUCK
 description: Seven-player CoreDUCK Army script for The Beast (Legion Daily Quest 1675).
 tags: ultra, the beast, sevencircleswar, seven-player, army, coreduck, legion daily
@@ -6,7 +6,7 @@ tags: ultra, the beast, sevencircleswar, seven-player, army, coreduck, legion da
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/UltrasDUCK/CoreDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
 using System;
 using System.Collections.Generic;
 using Skua.Core.Interfaces;

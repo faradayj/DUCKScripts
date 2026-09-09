@@ -1,16 +1,16 @@
-/*
+﻿/*
 name: UltraPotionsv4
 description: Ultra potion helper/presets with BuyReagents enabled
 tags: ultra,potions
 */
 
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
 //cs_include Scripts/CoreStory.cs
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreFarms.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/GetPotionsv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/GetPotionsv4.cs
 
 using System;
 using System.Linq;

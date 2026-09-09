@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Void Dailies DUCK
 description: Master combined daily runner for Quest 9091 (Wrong Turn at Voidbuquerque) and Quest 8653 (The Encroaching Shadows) using CoreDUCK.
 tags: void, dailies, 9091, 8653, xyfrag, nightbane, flibbi, icewing, hydra, coreduck, 7man
@@ -6,11 +6,11 @@ tags: void, dailies, 9091, 8653, xyfrag, nightbane, flibbi, icewing, hydra, core
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/UltrasDUCK/CoreDUCK.cs
-//cs_include Scripts/Customv2/UltrasDUCK/VoidBosses/VoidXyfragDUCK.cs
-//cs_include Scripts/Customv2/UltrasDUCK/VoidBosses/VoidNightbaneDUCK.cs
-//cs_include Scripts/Customv2/UltrasDUCK/VoidBosses/VoidFlibbitiestgibbetDUCK.cs
-//cs_include Scripts/Customv2/UltrasDUCK/SevenPlayerUltras/IceWingDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/VoidBosses/VoidXyfragDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/VoidBosses/VoidNightbaneDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/VoidBosses/VoidFlibbitiestgibbetDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/SevenPlayerUltras/IceWingDUCK.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;

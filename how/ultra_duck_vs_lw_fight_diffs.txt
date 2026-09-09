@@ -1,9 +1,9 @@
-====================================================================================================
+﻿====================================================================================================
       MASTER ARCHITECTURAL AUDIT & FIGHT-BY-FIGHT DIFF: ULTRASDUCK VS ULTRASLW
 ====================================================================================================
 Generated: August 2026
 Scope: Comprehensive Comparative Analysis of All 11 Core Ultras, Dailies, and 7-Player Bosses
-Files Analyzed: Customv2/UltrasDUCK/* vs UltrasLW/*
+Files Analyzed: DUCKScripts/UltrasDUCK/* vs UltrasLW/*
 
 ----------------------------------------------------------------------------------------------------
 TABLE OF CONTENTS
@@ -54,7 +54,7 @@ The Fatal Consequences of Flat Candidate Pools:
 ====================================================================================================
 2. DEEP DIVE: THE ULTRA DAGE DISASTER (HEALING INVERSION & SELF-DESTRUCTION)
 ====================================================================================================
-Target Files: Customv2/UltrasDUCK/UltraDageDUCK.cs vs UltrasLW/UltraDage_LW.cs
+Target Files: DUCKScripts/UltrasDUCK/UltraDageDUCK.cs vs UltrasLW/UltraDage_LW.cs
 
 The Ultra Dage Mechanic:
 - Dage casts "Noxious Decay" and "Unleashed Doom", which inverts all standard skill-based healing
@@ -90,7 +90,7 @@ DUCK Implementation (Completely Broken):
 ====================================================================================================
 3. DEEP DIVE: THE ULTRA NULGATH BREAKDOWN (DUAL-DOT SYNERGIES & WEAPON CONSTRAINTS)
 ====================================================================================================
-Target Files: Customv2/UltrasDUCK/UltraNulgathDUCK.cs vs UltrasLW/UltraNulgath_LW.cs
+Target Files: DUCKScripts/UltrasDUCK/UltraNulgathDUCK.cs vs UltrasLW/UltraNulgath_LW.cs
 
 LoneWolf Implementation (Correct):
 UltrasLW provides 6 distinct tactical units:
@@ -121,7 +121,7 @@ DUCK Implementation (Completely Broken):
 ====================================================================================================
 4. DEEP DIVE: THE ULTRA GRAMIEL BREAKDOWN (CONDITIONAL ELYSIUM VS FORCED CONSTRAINTS)
 ====================================================================================================
-Target Files: Customv2/UltrasDUCK/UltraGramielDUCK.cs vs UltrasLW/UltraGramiel_LW.cs
+Target Files: DUCKScripts/UltrasDUCK/UltraGramielDUCK.cs vs UltrasLW/UltraGramiel_LW.cs
 
 LoneWolf Implementation (Correct):
 - Default: `LR / SC / AP / LOO` (LR uses `Penitence` cape, Skill rotation `{ 3, 4, 2 }`).

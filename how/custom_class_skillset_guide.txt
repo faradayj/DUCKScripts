@@ -1,7 +1,7 @@
-====================================================================================================
+﻿====================================================================================================
            AQW ULTRAS DUCK FRAMEWORK - CUSTOM CLASS SKILLSET ARCHITECTURE & IMPLEMENTATION GUIDE
 ====================================================================================================
-Location: Scripts/Customv2/how/custom_class_skillset_guide.txt
+Location: Scripts/DUCKScripts/how/custom_class_skillset_guide.txt
 Architecture Version: 2.0 (High-Performance Multi-Threaded Combat Engine)
 Author: Antigravity / DUCK Engineering
 
@@ -261,7 +261,7 @@ public ClassPreset GetClassPreset(string className)
 ----------------------------------------------------------------------------------------------------
 STEP 6: STANDALONE COMBAT VERIFICATION & LIVE TELEMETRY (`TestClassDUCK.cs`)
 ----------------------------------------------------------------------------------------------------
-Location: `Scripts/Customv2/UltrasDUCK/TestClassDUCK.cs`
+Location: `Scripts/DUCKScripts/UltrasDUCK/TestClassDUCK.cs`
 
 Run `TestClassDUCK.cs` in Skua. This script:
 1. Automatically detects the equipped class on your character.
@@ -270,7 +270,7 @@ Run `TestClassDUCK.cs` in Skua. This script:
 4. Joins `classhall-1245` `r4`/`Right` and attacks the `Testing Dummy`.
 5. Passes `survivalSkill: preset.SurvivalSkill` and `survivalHealthThreshold: preset.SurvivalHealthThreshold`
    into `Duck.StartSkillEngine(...)`.
-6. Emits live telemetry every second to `Customv2/Logs/duck_army.log` and Skua's logger:
+6. Emits live telemetry every second to `DUCKScripts/Logs/duck_army.log` and Skua's logger:
    `[Diag] HP:X/Y MP:A/B | Skills:[1:True, 2:True, 3:True, 4:True] | Self:[Auras] | Target:[Auras]`
 
 ====================================================================================================

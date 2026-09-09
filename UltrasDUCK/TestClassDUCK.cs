@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Test Class DUCK
 description: Auto-enhances currently equipped class and tests its custom CoreDUCK skillset in selected testing environment (classhall, classhall2, celestialarenad, icestormunder, necrodungeon, ultradrakath, bosschallenge, or sevencircleswar).
 tags: test, class, skillset, coreduck, dummy, boss dummy, aranx, frost spirit, doom overlord, champion of chaos, ancient horror, wrath guard
@@ -6,7 +6,7 @@ tags: test, class, skillset, coreduck, dummy, boss dummy, aranx, frost spirit, d
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/UltrasDUCK/CoreDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;

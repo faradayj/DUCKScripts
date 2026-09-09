@@ -1,6 +1,6 @@
-================================================================================
+﻿================================================================================
           VOID DAILIES (QUEST 9091 & QUEST 8653) COMPLETE BREAKDOWN
-                      Reference: Customv2/Ultrasv4/VoidDailiesv4.cs
+                      Reference: DUCKScripts/Ultrasv4/VoidDailiesv4.cs
 ================================================================================
 
 1. OVERVIEW

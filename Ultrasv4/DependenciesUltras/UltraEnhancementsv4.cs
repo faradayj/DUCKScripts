@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: UltraEnhancementsv4
 description: Centralized dynamic enhancement router using JSON configuration.
 tags: ultra, enhancements, json
@@ -7,7 +7,7 @@ tags: ultra, enhancements, json
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreFarms.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraCustomClassSyncv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraCustomClassSyncv4.cs
 
 using System;
 using System.Collections.Generic;
@@ -36,7 +36,7 @@ public class UltraEnhancementsv4
 
     private static string ConfigPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Skua", "Scripts", "Customv2", "Ultrasv4", "DependenciesUltras", "ultras_enhancements.json"
+        "Skua", "Scripts", "DUCKScripts", "Ultrasv4", "DependenciesUltras", "ultras_enhancements.json"
     );
 
     /// <summary>

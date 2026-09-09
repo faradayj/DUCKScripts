@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Azalith DUCK
 description: Seven-player DUCK script for Azalith in /celestialpast (The Divine Will).
 tags: ultra, azalith, celestialpast, the divine will, seven-player, army, coreduck
@@ -6,7 +6,7 @@ tags: ultra, azalith, celestialpast, the divine will, seven-player, army, coredu
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/UltrasDUCK/CoreDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
 using System;
 using System.Collections.Generic;
 using Skua.Core.Interfaces;

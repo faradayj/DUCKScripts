@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Butlerv4 DUCK (TCP)
 description: Follows a leader via Goto/TCP with CoreDUCK asynchronous skill engine integration.
 tags: butler, follow, goto, tcp, coreduck, duck
@@ -7,7 +7,7 @@ tags: butler, follow, goto, tcp, coreduck, duck
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
 //cs_include Scripts/CoreFarms.cs
-//cs_include Scripts/Customv2/UltrasDUCK/CoreDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
 
 using System;
 using System.Collections.Generic;

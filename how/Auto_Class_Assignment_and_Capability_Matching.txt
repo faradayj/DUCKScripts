@@ -1,4 +1,4 @@
-================================================================================
+﻿================================================================================
 ================================================================================
        AUTO-ASSIGNMENT LOGIC, CAPABILITY MATCHING & ENHANCEMENT CONSISTENCY
                      IN ULTRASV4 VS LONWOLF (ULTRASLW)
@@ -6,10 +6,10 @@
 ================================================================================
 
 Target Analysis Files:
-- Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraCustomClassSyncv4.cs
-- Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraEnhancementsv4.cs
-- Scripts/Customv2/Ultrasv4/DependenciesUltras/ultras_enhancements.json
-- Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreUltrav4.cs (EquipClassSync)
+- Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraCustomClassSyncv4.cs
+- Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraEnhancementsv4.cs
+- Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/ultras_enhancements.json
+- Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreUltrav4.cs (EquipClassSync)
 - Scripts/UltrasLW/0AllUltras_LW.cs & Scripts/UltrasLW/CoreLoneWolf.cs
 
 
@@ -159,7 +159,7 @@ In `UltrasLW`:
 4. ARCHITECTURAL BLUEPRINT FOR IMPLEMENTING AUTO-ASSIGNMENT INTO ULTRASDUCK
 ================================================================================
 
-To integrate this system into `Customv2/UltrasDUCK`, we can implement:
+To integrate this system into `DUCKScripts/UltrasDUCK`, we can implement:
 
 ```mermaid
 graph TD

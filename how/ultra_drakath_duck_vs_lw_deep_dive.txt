@@ -1,10 +1,10 @@
-====================================================================================================
+﻿====================================================================================================
            CHAMPION DRAKATH - DUCK VS LW COMPARISON & REMEDIATION REPORT
 ====================================================================================================
-Location: Scripts/Customv2/how/ultra_drakath_duck_vs_lw_deep_dive.txt
+Location: Scripts/DUCKScripts/how/ultra_drakath_duck_vs_lw_deep_dive.txt
 Target Scripts: 
   - Scripts/UltrasLW/UltraDrakath_LW.cs
-  - Scripts/Customv2/UltrasDUCK/UltraDrakathDUCK.cs
+  - Scripts/DUCKScripts/UltrasDUCK/UltraDrakathDUCK.cs
 Boss: Champion Drakath (championdrakath | Cell: r2, Left | MapID: 1 | HP: 20,000,000)
 
 ----------------------------------------------------------------------------------------------------

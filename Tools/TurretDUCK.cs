@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Turret DUCK
 description: Map sentry and auto-attack turret using CoreDUCK asynchronous skill engine.
 tags: turret, sentry, autoattack, farm, kill, coreduck, duck
@@ -7,7 +7,7 @@ tags: turret, sentry, autoattack, farm, kill, coreduck, duck
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
 //cs_include Scripts/CoreFarms.cs
-//cs_include Scripts/Customv2/UltrasDUCK/CoreDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
 
 using System;
 using System.Collections.Generic;

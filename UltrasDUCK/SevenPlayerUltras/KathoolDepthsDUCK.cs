@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Kathool Depths DUCK
 description: Seven-player CoreDUCK Army script for God of the Depths (including Legion Daily Quest 1677).
 tags: ultra, kathool depths, god of the depths, seven-player, army, coreduck, legion daily
@@ -6,7 +6,7 @@ tags: ultra, kathool depths, god of the depths, seven-player, army, coreduck, le
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/UltrasDUCK/CoreDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
 using System;
 using System.Collections.Generic;
 using Skua.Core.Interfaces;

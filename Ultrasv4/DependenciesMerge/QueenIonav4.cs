@@ -1,11 +1,11 @@
-/*
+﻿/*
 name: QueenIonav4
 description: Queen Iona solo
 tags: Ultra, queen, iona, queen iona
 */
 
-//cs_include Scripts/Customv2/Ultrasv4/Entwined Eclipse/CoreEnginev4.cs
-//cs_include Scripts/Customv2/Ultrasv4/Entwined Eclipse/CoreUltrav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/Entwined Eclipse/CoreEnginev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/Entwined Eclipse/CoreUltrav4.cs
 //cs_include Scripts/CoreStory.cs
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreFarms.cs

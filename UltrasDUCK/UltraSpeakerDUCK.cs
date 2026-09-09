@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Ultra Speaker LW
 description: Four-player Ultra Speaker Army script using CoreDUCK.
 tags: ultra, speaker, army, coreduck
@@ -6,7 +6,7 @@ tags: ultra, speaker, army, coreduck
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/UltrasDUCK/CoreDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
 using System;
 using System.Collections.Generic;
 using System.Threading;

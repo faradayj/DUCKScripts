@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Ultra Tyndarius LW
 description: Four-player CoreDUCK Army script for Ultra Tyndarius.
 tags: ultra, tyndarius, army, coreduck
@@ -6,7 +6,7 @@ tags: ultra, tyndarius, army, coreduck
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/UltrasDUCK/CoreDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
 using System;
 using System.Collections.Generic;
 using Skua.Core.Interfaces;

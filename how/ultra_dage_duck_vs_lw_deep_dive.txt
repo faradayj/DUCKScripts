@@ -1,10 +1,10 @@
-====================================================================================================
+﻿====================================================================================================
            ULTRA DAGE - DUCK VS LW COMPARISON & REMEDIATION REPORT
 ====================================================================================================
-Location: Scripts/Customv2/how/ultra_dage_duck_vs_lw_deep_dive.txt
+Location: Scripts/DUCKScripts/how/ultra_dage_duck_vs_lw_deep_dive.txt
 Target Scripts: 
   - Scripts/UltrasLW/UltraDage_LW.cs
-  - Scripts/Customv2/UltrasDUCK/UltraDageDUCK.cs
+  - Scripts/DUCKScripts/UltrasDUCK/UltraDageDUCK.cs
 Boss: Ultra Dage (ultradage | Cell: Boss, Right | MapID: 1 | HP: 5,000,000)
 
 ----------------------------------------------------------------------------------------------------

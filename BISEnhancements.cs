@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: BISEnhancements
 description: Applies Best-in-Slot (BiS) enhancements to the currently equipped class based on a JSON config.
 tags: custom, enhancements, bis, best-in-slot
@@ -25,7 +25,7 @@ public class BISEnhancements
 
     private static string ConfigPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Skua", "Scripts", "Customv2", "bis_enhancements.json"
+        "Skua", "Scripts", "DUCKScripts", "bis_enhancements.json"
     );
 
     public void ScriptMain(IScriptInterface bot)

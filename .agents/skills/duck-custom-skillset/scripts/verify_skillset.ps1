@@ -1,6 +1,6 @@
-# Verification script for CoreDUCK skillsets
+﻿# Verification script for CoreDUCK skillsets
 param (
-    [string]$ScriptPath = "Customv2/UltrasDUCK/TestClassDUCK.cs"
+    [string]$ScriptPath = "DUCKScripts/UltrasDUCK/TestClassDUCK.cs"
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,7 +11,7 @@ Write-Host "=== Running Skua Compilation Check ===" -ForegroundColor Cyan
 Write-Host "Target Script: $ScriptPath" -ForegroundColor Gray
 Write-Host "Workspace: $WorkspaceRoot" -ForegroundColor Gray
 
-$TesterProj = Join-Path $WorkspaceRoot "Customv2\SkuaCompileTester\SkuaCompileTester.csproj"
+$TesterProj = Join-Path $WorkspaceRoot "DUCKScripts\SkuaCompileTester\SkuaCompileTester.csproj"
 $TargetFullPath = Join-Path $WorkspaceRoot $ScriptPath
 
 if (-not (Test-Path $TesterProj)) {

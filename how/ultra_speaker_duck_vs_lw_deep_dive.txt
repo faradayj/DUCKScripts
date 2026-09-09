@@ -1,10 +1,10 @@
-====================================================================================================
+﻿====================================================================================================
           ULTRA SPEAKER - DUCK VS LW COMPARISON & REMEDIATION REPORT
 ====================================================================================================
-Location: Scripts/Customv2/how/ultra_speaker_duck_vs_lw_deep_dive.txt
+Location: Scripts/DUCKScripts/how/ultra_speaker_duck_vs_lw_deep_dive.txt
 Target Scripts: 
   - Scripts/UltrasLW/UltraSpeaker_LW.cs
-  - Scripts/Customv2/UltrasDUCK/UltraSpeakerDUCK.cs
+  - Scripts/DUCKScripts/UltrasDUCK/UltraSpeakerDUCK.cs
 Boss: Ultra Speaker (ultraspeaker | Cell: Boss, Left | MapID: 1 | HP: 6,000,000)
 
 ----------------------------------------------------------------------------------------------------

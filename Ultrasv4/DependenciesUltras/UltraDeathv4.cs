@@ -1,12 +1,12 @@
-/*
+﻿/*
 name: UltraDeathv4
 description: Army death sync — detects and propagates death events across army members.
 tags: ultra, death, sync, army
 */
 
 //cs_include Scripts/CoreBots.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraWaitForArmyv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraWaitForArmyv4.cs
 
 using System;
 using System.IO;

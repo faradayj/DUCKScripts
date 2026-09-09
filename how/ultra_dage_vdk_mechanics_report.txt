@@ -1,10 +1,10 @@
-====================================================================================================
+﻿====================================================================================================
       ULTRA DAGE - VDK PRIORITY & SPECIALIZED ANTI-HEAL MECHANICS REPORT
 ====================================================================================================
-Location: Scripts/Customv2/how/ultra_dage_vdk_mechanics_report.txt
+Location: Scripts/DUCKScripts/how/ultra_dage_vdk_mechanics_report.txt
 Target Scripts: 
   - Scripts/UltrasLW/UltraDage_LW.cs
-  - Scripts/Customv2/UltrasDUCK/UltraDageDUCK.cs
+  - Scripts/DUCKScripts/UltrasDUCK/UltraDageDUCK.cs
 Boss: Ultra Dage (ultradage | Cell: Boss, Right | MapID: 1 | HP: 5,000,000)
 
 ----------------------------------------------------------------------------------------------------

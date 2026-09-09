@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Army Prismatas Gold Farm DUCK
 description: Seven-player CoreDUCK Army gold farm for Elemental Binding in /archmage.
 tags: gold, prismatas, elemental binding, seven-player, army, coreduck
@@ -6,7 +6,7 @@ tags: gold, prismatas, elemental binding, seven-player, army, coreduck
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/UltrasDUCK/CoreDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;

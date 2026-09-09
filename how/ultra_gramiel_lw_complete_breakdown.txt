@@ -1,7 +1,7 @@
-====================================================================================================
+﻿====================================================================================================
            EXHAUSTIVE CODE-LEVEL BREAKDOWN OF ULTRAGRAMIEL_LW.CS (EVERY LAST STEP & LINE)
 ====================================================================================================
-File Location: Scripts/Customv2/how/ultra_gramiel_lw_complete_breakdown.txt
+File Location: Scripts/DUCKScripts/how/ultra_gramiel_lw_complete_breakdown.txt
 Source File: Scripts/UltrasLW/UltraGramiel_LW.cs
 Associated Files: Scripts/UltrasLW/CoreLoneWolf.cs, Scripts/CoreBots.cs
 

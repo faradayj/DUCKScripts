@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Solstice Moon Test
 description: Runs only the Solstice Moon / Shrine - Left portion for testing Lunar Haze and Hollow Midnight taunt timing.
 tags: solstice, moon, hollow midnight, lunar haze, army, taunt, test
@@ -6,8 +6,8 @@ tags: solstice, moon, hollow midnight, lunar haze, army, taunt, test
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreFarms.cs
 //cs_include Scripts/CoreAdvanced.cs 
-//cs_include Scripts/Customv2/Ultrasv4/Entwined Eclipse/CoreUltrav4.cs
-//cs_include Scripts/Customv2/Ultrasv4/Entwined Eclipse/CoreEnginev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/Entwined Eclipse/CoreUltrav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/Entwined Eclipse/CoreEnginev4.cs
 //cs_include Scripts/Army/CoreArmyLite.cs
 using Newtonsoft.Json;
 using Skua.Core.Interfaces;

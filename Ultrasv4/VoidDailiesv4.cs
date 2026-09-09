@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: VoidDailiesv4
 description: Master combined daily runner for Quest 9091 (Wrong Turn at Voidbuquerque) and Quest 8653 (The Encroaching Shadows) using Ultrasv4 framework (7P matrix: VDK, LR, LoO, AF, LH, DoT x2) with strict 7-player army sync gates and bank-inclusive drop checks.
 tags: custom, dailies, voidbuquerque, encroaching, shadow, ultrasv4
@@ -8,18 +8,18 @@ tags: custom, dailies, voidbuquerque, encroaching, shadow, ultrasv4
 //cs_include Scripts/CoreFarms.cs
 //cs_include Scripts/CoreAdvanced.cs
 //cs_include Scripts/CoreStory.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraEnhancementsv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraPotionsv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraGeneralv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UnifiedQueuev4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraCustomClassSyncv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraWaitForArmyv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/ChallengeBosses/Xyfragv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/ChallengeBosses/Flibbiv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/ChallengeBosses/NightBanev4.cs
-//cs_include Scripts/Customv2/Ultrasv4/ChallengeBosses/IceWingv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraEnhancementsv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraPotionsv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraGeneralv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UnifiedQueuev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraCustomClassSyncv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraWaitForArmyv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/ChallengeBosses/Xyfragv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/ChallengeBosses/Flibbiv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/ChallengeBosses/NightBanev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/ChallengeBosses/IceWingv4.cs
 
 using System;
 using System.Collections.Generic;

@@ -1,10 +1,10 @@
-====================================================================================================
+﻿====================================================================================================
            ULTRA DARKON - DUCK VS LW COMPARISON & REMEDIATION REPORT
 ====================================================================================================
-Location: Scripts/Customv2/how/ultra_darkon_duck_vs_lw_deep_dive.txt
+Location: Scripts/DUCKScripts/how/ultra_darkon_duck_vs_lw_deep_dive.txt
 Target Scripts: 
   - Scripts/UltrasLW/UltraDarkon_LW.cs
-  - Scripts/Customv2/UltrasDUCK/UltraDarkonDUCK.cs
+  - Scripts/DUCKScripts/UltrasDUCK/UltraDarkonDUCK.cs
 Boss: Ultra Darkon (ultradarkon | Cell: r2, Left | MapID: 1 | HP: 20,000,000)
 
 ----------------------------------------------------------------------------------------------------

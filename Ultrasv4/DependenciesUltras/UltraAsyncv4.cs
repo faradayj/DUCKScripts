@@ -1,12 +1,12 @@
-/*
+﻿/*
 name: UltraAsyncv4
 description: Pulse-driven taunt loop for Ultra boss scripts.
 tags: ultra, async, taunt, pulse
 */
 
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraPulsev4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraPulsev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
 //cs_include Scripts/CoreBots.cs
 
 using System;

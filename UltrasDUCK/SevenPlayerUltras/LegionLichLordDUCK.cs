@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Legion Lich Lord DUCK
 description: Seven-player CoreDUCK Army script for Legion Lich Lord (Legion Daily Quest 1674).
 tags: ultra, legion lich lord, frozenlair, seven-player, army, coreduck, legion daily
@@ -6,7 +6,7 @@ tags: ultra, legion lich lord, frozenlair, seven-player, army, coreduck, legion 
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/UltrasDUCK/CoreDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
 using System;
 using System.Collections.Generic;
 using Skua.Core.Interfaces;

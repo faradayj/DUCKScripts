@@ -1,7 +1,7 @@
-====================================================================================================
+﻿====================================================================================================
                AQW ULTRAS DUCK FRAMEWORK - MASTER ARCHITECTURAL MANUAL & BLUEPRINT
 ====================================================================================================
-Location: Scripts/Customv2/how/ultra_framework_guide.txt
+Location: Scripts/DUCKScripts/how/ultra_framework_guide.txt
 Architecture Version: 4.0 (Universal Resilient Lockstep, Jump-and-Engage & Diagnostic Tracing)
 Author: Antigravity / DUCK Engineering
 
@@ -302,7 +302,7 @@ AQW multi-client army scripts run across multiple background or minimized client
 centralized file logging, diagnosing hangs, desyncs, or failed attempts across an army is impossible.
 
 The DUCK Framework provides `Duck.FileLog(string message, string logPrefix = "")`:
-- Thread-safe, non-blocking file writer to `Scripts/Customv2/Logs/duck_army.log`.
+- Thread-safe, non-blocking file writer to `Scripts/DUCKScripts/Logs/duck_army.log`.
 - Automatically prepends high-resolution timestamp, active username, and script prefix:
   `2026-08-25 20:00:14.972 [boessay] [Ultra Tyndarius DUCK] Started as Player 1 (Lord of Order) in room 1245.`
 
@@ -704,7 +704,7 @@ tags: ultra, custom, army, coreduck
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/UltrasDUCK/CoreDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
 using System;
 using System.Collections.Generic;
 using Skua.Core.Interfaces;
@@ -1530,7 +1530,7 @@ tags: farm, challenge, repeatable, coreduck
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/UltrasDUCK/CoreDUCK.cs
+//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;

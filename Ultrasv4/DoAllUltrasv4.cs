@@ -1,28 +1,28 @@
-/*
+﻿/*
 name: AllUltras
 description: null
 tags: null
 */
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraGeneralv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UnifiedQueuev4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraWaitForArmyv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/PrerequisitesCheckerv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraGeneralv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UnifiedQueuev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraWaitForArmyv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/PrerequisitesCheckerv4.cs
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/Ultrasv4/IndividualUltras/1UltraEzrajalv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/IndividualUltras/2UltraWardenv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/IndividualUltras/3UltraEngineerv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/IndividualUltras/4UltraAvatarTyndariusv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/IndividualUltras/5ChampionDrakathv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/IndividualUltras/6UltraNulgathv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/IndividualUltras/7UltraDragov4.cs
-//cs_include Scripts/Customv2/Ultrasv4/IndividualUltras/8UltraDarkonv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/IndividualUltras/9UltraDagev4.cs
-//cs_include Scripts/Customv2/Ultrasv4/IndividualUltras/10UltraSpeakerv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/IndividualUltras/11UltraGramielv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/ChallengeBosses/BataraKalav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/IndividualUltras/1UltraEzrajalv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/IndividualUltras/2UltraWardenv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/IndividualUltras/3UltraEngineerv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/IndividualUltras/4UltraAvatarTyndariusv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/IndividualUltras/5ChampionDrakathv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/IndividualUltras/6UltraNulgathv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/IndividualUltras/7UltraDragov4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/IndividualUltras/8UltraDarkonv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/IndividualUltras/9UltraDagev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/IndividualUltras/10UltraSpeakerv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/IndividualUltras/11UltraGramielv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/ChallengeBosses/BataraKalav4.cs
 
 using System;
 using System.Collections.Generic;

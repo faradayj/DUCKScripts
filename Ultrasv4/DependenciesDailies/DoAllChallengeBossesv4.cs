@@ -1,20 +1,20 @@
-/*
+﻿/*
 name: DoAllChallengeBossesv4
 description: Runs all challenge boss dailies with shared queue — Queen Iona > Kolr > Kathool > Astral Empyrean.
 tags: all, challenge, bosses, dailies, queeniona, kolr, kathool, astralempyrean
 */
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraGeneralv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraQueuev4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraWaitForArmyv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/PrerequisitesCheckerv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraGeneralv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraQueuev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraWaitForArmyv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/PrerequisitesCheckerv4.cs
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesDailies/QueenIonaNoOptionv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesDailies/KolrNoOptionv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesDailies/KathoolNoOptionv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesDailies/AstralEmpyreanNoOptionv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesDailies/QueenIonaNoOptionv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesDailies/KolrNoOptionv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesDailies/KathoolNoOptionv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesDailies/AstralEmpyreanNoOptionv4.cs
 
 using System;
 using System.Collections.Generic;

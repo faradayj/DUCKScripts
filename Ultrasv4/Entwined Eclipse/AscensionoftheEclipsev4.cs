@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Ascend Eclipse Test
 description: Tests the Ascension of the Eclipse dungeon in a loop. Handles dual final bosses (Ascended Solstice + Ascended Midnight) with HP-balanced targeting, alternating convergence taunts, and Daybreak/Nightfall cross-cancel mechanic.
 tags: greatblade, entwined, eclipse, ascend, ascendeclipse, army, taunt, test
@@ -6,8 +6,8 @@ tags: greatblade, entwined, eclipse, ascend, ascendeclipse, army, taunt, test
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreFarms.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/Ultrasv4/Entwined Eclipse/CoreUltrav4.cs
-//cs_include Scripts/Customv2/Ultrasv4/Entwined Eclipse/CoreEnginev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/Entwined Eclipse/CoreUltrav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/Entwined Eclipse/CoreEnginev4.cs
 //cs_include Scripts/Army/CoreArmyLite.cs
 using Newtonsoft.Json;
 using Skua.Core.Interfaces;

@@ -1,10 +1,10 @@
-====================================================================================================
+﻿====================================================================================================
            ULTRA NULGATH - DUCK VS LW COMPARISON & REMEDIATION REPORT
 ====================================================================================================
-Location: Scripts/Customv2/how/ultra_nulgath_duck_vs_lw_deep_dive.txt
+Location: Scripts/DUCKScripts/how/ultra_nulgath_duck_vs_lw_deep_dive.txt
 Target Scripts: 
   - Scripts/UltrasLW/UltraNulgath_LW.cs
-  - Scripts/Customv2/UltrasDUCK/UltraNulgathDUCK.cs
+  - Scripts/DUCKScripts/UltrasDUCK/UltraNulgathDUCK.cs
 Boss: Ultra Nulgath (ultranulgath | Cell: Boss, Right | Blade MapID: 1 | Nulgath MapID: 2)
 
 ----------------------------------------------------------------------------------------------------

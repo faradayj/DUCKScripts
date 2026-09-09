@@ -1,4 +1,4 @@
-================================================================================
+﻿================================================================================
 ================================================================================
        CORELONEWOLF (CoreLoneWolf.cs) - COMPLETE TECHNICAL ARCHITECTURE
                AND IN-DEPTH COMPARISON WITH COREENGINEV4.CS
@@ -6,8 +6,8 @@
 ================================================================================
 
 Target File Analyzed : Scripts/UltrasLW/CoreLoneWolf.cs
-Comparison Target    : Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
-Output File Location : Scripts/Customv2/how/CoreLoneWolf_Deep_Dive_and_Comparison.txt
+Comparison Target    : Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
+Output File Location : Scripts/DUCKScripts/how/CoreLoneWolf_Deep_Dive_and_Comparison.txt
 
 
 ================================================================================

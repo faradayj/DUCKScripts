@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Greatblade of the Entwined Eclipse (Full Chain)
 description: End-to-end farm for Greatblade of the Entwined Eclipse. Runs Victor Matsuri storyline, kills Masakadov4 via the King's Echo army flow for Victor of the Festival, farms Slivers of Sunlight/Moonlight, merges Rite of Ascension, farms Ecliptic Offering in Ascension of the Eclipse, then merges the full blade chain up to the final Greatblade.
 tags: greatblade, entwined, eclipse, full, chain, victor, matsuri, masakado, rite, ascension, midnight, solstice, ascend, army
@@ -7,12 +7,12 @@ tags: greatblade, entwined, eclipse, full, chain, victor, matsuri, masakado, rit
 //cs_include Scripts/CoreFarms.cs
 //cs_include Scripts/CoreAdvanced.cs
 //cs_include Scripts/Army/CoreArmyLite.cs
-//cs_include Scripts/Customv2/Ultrasv4/Entwined Eclipse/CoreUltrav4.cs
-//cs_include Scripts/Customv2/Ultrasv4/Entwined Eclipse/VictorMatsuriStoryv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/Entwined Eclipse/Masakadov4.cs
-//cs_include Scripts/Customv2/Ultrasv4/Entwined Eclipse/MidnightSunv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/Entwined Eclipse/SolsticeMoonv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/Entwined Eclipse/AscensionoftheEclipsev4.cs  
+//cs_include Scripts/DUCKScripts/Ultrasv4/Entwined Eclipse/CoreUltrav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/Entwined Eclipse/VictorMatsuriStoryv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/Entwined Eclipse/Masakadov4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/Entwined Eclipse/MidnightSunv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/Entwined Eclipse/SolsticeMoonv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/Entwined Eclipse/AscensionoftheEclipsev4.cs  
 using Skua.Core.Interfaces;
 using Skua.Core.Options;
 using System;

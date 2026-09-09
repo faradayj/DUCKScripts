@@ -1,29 +1,29 @@
-/*
+﻿/*
 name: DoAll7Ultrasv4
 description: Master combined runner for 7-player Ultras (Astral Empyrean, Deimos, Legion Lich Lord, The Beast, Kathool, and Kasuko).
 tags: ultras, 7-player, astral empyrean, deimos, legion lich lord, the beast, kathool, kasuko
 */
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraGeneralv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UnifiedQueuev4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraWaitForArmyv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreEnginev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/CoreUltrav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraGeneralv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UnifiedQueuev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraWaitForArmyv4.cs
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
 //cs_include Scripts/CoreFarms.cs
 //cs_include Scripts/CoreStory.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraPotionsv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraEnhancementsv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraCustomClassSyncv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraAsyncv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/GetScrollsv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/DependenciesUltras/UltraDeathv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/ChallengeBosses/AstralEmpyreanv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/ChallengeBosses/Deimosv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/ChallengeBosses/LegionLichLordv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/ChallengeBosses/TheBeastv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/ChallengeBosses/Kathoolv4.cs
-//cs_include Scripts/Customv2/Ultrasv4/ChallengeBosses/Kasukov4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraPotionsv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraEnhancementsv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraCustomClassSyncv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraAsyncv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/GetScrollsv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/DependenciesUltras/UltraDeathv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/ChallengeBosses/AstralEmpyreanv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/ChallengeBosses/Deimosv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/ChallengeBosses/LegionLichLordv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/ChallengeBosses/TheBeastv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/ChallengeBosses/Kathoolv4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/ChallengeBosses/Kasukov4.cs
 
 using System;
 using System.Collections.Generic;

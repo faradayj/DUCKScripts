@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Midnight Sun (Sun Side Test)
 description: Farms Sliver of Sunlight by running /midnightsun in a loop. 4-account army script with alternating Scroll of Enrage taunt. Slot 1 = Legion Revenant, Slot 2 = StoneCrusher, Slot 3 = ArchPaladin, Slot 4 = Lord of Order.
 tags: greatblade, entwined, eclipse, midnight, sun, farm, test, army
@@ -6,8 +6,8 @@ tags: greatblade, entwined, eclipse, midnight, sun, farm, test, army
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreFarms.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/Ultrasv4/Entwined Eclipse/CoreUltrav4.cs
-//cs_include Scripts/Customv2/Ultrasv4/Entwined Eclipse/CoreEnginev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/Entwined Eclipse/CoreUltrav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/Entwined Eclipse/CoreEnginev4.cs
 //cs_include Scripts/Army/CoreArmyLite.cs
 using Newtonsoft.Json;
 using Skua.Core.Interfaces;

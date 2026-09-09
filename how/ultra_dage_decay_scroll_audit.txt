@@ -1,8 +1,8 @@
-====================================================================================================
+﻿====================================================================================================
           ULTRA DAGE - STONECRUSHER SCROLL OF DECAY AUDIT & ROOT CAUSE ANALYSIS
 ====================================================================================================
-Location: Scripts/Customv2/how/ultra_dage_decay_scroll_audit.txt
-Target Script: Scripts/Customv2/UltrasDUCK/UltraDageDUCK.cs
+Location: Scripts/DUCKScripts/how/ultra_dage_decay_scroll_audit.txt
+Target Script: Scripts/DUCKScripts/UltrasDUCK/UltraDageDUCK.cs
 
 ----------------------------------------------------------------------------------------------------
 1. ROOT CAUSE SUMMARY: WHY STONECRUSHER IS NOT CASTING SCROLL OF DECAY

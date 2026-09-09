@@ -1,4 +1,4 @@
-# DUCKScripts - AQW Multi-Client Ultra & Army Framework
+﻿# DUCKScripts - AQW Multi-Client Ultra & Army Framework
 
 **DUCKScripts** is a distributed, high-performance multi-client automation framework for **AdventureQuest Worlds (AQW)** built on the **Skua** botting client. It coordinates 4 to 7 concurrent game clients through local filesystem lockstep signals to take down every daily, weekly, and challenge Ultra boss with 100% raid reliability and zero user intervention.
 
@@ -65,7 +65,7 @@ DUCKScripts/
 
 1. Clone or place this folder into your Skua scripts directory:
    ```bash
-   git clone <REPO_URL> "Customv2"
+   git clone <REPO_URL> "DUCKScripts"
    # or
    git clone <REPO_URL> "DUCKScripts"
    ```

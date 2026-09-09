@@ -1,10 +1,10 @@
-====================================================================================================
+﻿====================================================================================================
           ULTRA GRAMIEL - DUCK VS LW COMPARISON & REMEDIATION REPORT
 ====================================================================================================
-Location: Scripts/Customv2/how/ultra_gramiel_duck_vs_lw_deep_dive.txt
+Location: Scripts/DUCKScripts/how/ultra_gramiel_duck_vs_lw_deep_dive.txt
 Target Scripts: 
   - Scripts/UltrasLW/UltraGramiel_LW.cs
-  - Scripts/Customv2/UltrasDUCK/UltraGramielDUCK.cs
+  - Scripts/DUCKScripts/UltrasDUCK/UltraGramielDUCK.cs
 Boss: Ultra Gramiel (ultragramiel | Cell: r2, Down | MapID: 1 | HP: 10,000,000)
       Grace Crystals: Crystal A (MapID 2 | HP: 1,500,000), Crystal B (MapID 3 | HP: 1,500,000)
 

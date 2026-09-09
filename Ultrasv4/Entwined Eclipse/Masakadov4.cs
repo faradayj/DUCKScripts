@@ -1,12 +1,12 @@
-/*
+﻿/*
 name: Masakadov4 King's Echo
 description: Solo or army helper for Victor Matsuri's final boss, Masakadov4, using King's Echo and Royal Resolve.
 tags: masakado, victor matsuri, kings echo, king's echo, army, solo, royal resolve
 */
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/Customv2/Ultrasv4/Entwined Eclipse/CoreUltrav4.cs
-//cs_include Scripts/Customv2/Ultrasv4/Entwined Eclipse/CoreEnginev4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/Entwined Eclipse/CoreUltrav4.cs
+//cs_include Scripts/DUCKScripts/Ultrasv4/Entwined Eclipse/CoreEnginev4.cs
 //cs_include Scripts/Army/CoreArmyLite.cs
 using Skua.Core.Interfaces;
 using Skua.Core.Models.Skills;
