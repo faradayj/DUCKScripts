@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Ultra Batara Kala DUCK
 description: Four-player CoreDUCK Army script for Ultra Batara Kala (Kala Insignia).
 tags: ultra, kala, batara kala, army, coreduck, daily
@@ -6,7 +6,7 @@ tags: ultra, kala, batara kala, army, coreduck, daily
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
+//cs_include DUCKScripts\UltrasDUCK\CoreDUCK.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -448,3 +448,4 @@ public class UltraBataraKalaDUCK
         return true;
     }
 }
+

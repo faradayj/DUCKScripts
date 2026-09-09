@@ -6,18 +6,18 @@ tags: ultra, army, coreduck, master, 7man, legion dailies
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
-//cs_include Scripts/DUCKScripts/UltrasDUCK/SevenPlayerUltras/AstralEmpyreanDUCK.cs
-//cs_include Scripts/DUCKScripts/UltrasDUCK/SevenPlayerUltras/KathoolDepthsDUCK.cs
-//cs_include Scripts/DUCKScripts/UltrasDUCK/SevenPlayerUltras/DeimosDUCK.cs
-//cs_include Scripts/DUCKScripts/UltrasDUCK/SevenPlayerUltras/LegionLichLordDUCK.cs
-//cs_include Scripts/DUCKScripts/UltrasDUCK/SevenPlayerUltras/TheBeastDUCK.cs
-//cs_include Scripts/DUCKScripts/UltrasDUCK/SevenPlayerUltras/KasukoDUCK.cs
-//cs_include Scripts/DUCKScripts/UltrasDUCK/SevenPlayerUltras/IceWingDUCK.cs
-//cs_include Scripts/DUCKScripts/UltrasDUCK/VoidBosses/VoidXyfragDUCK.cs
-//cs_include Scripts/DUCKScripts/UltrasDUCK/VoidBosses/VoidNightbaneDUCK.cs
-//cs_include Scripts/DUCKScripts/UltrasDUCK/VoidBosses/VoidFlibbitiestgibbetDUCK.cs
-//cs_include Scripts/DUCKScripts/UltrasDUCK/VoidBosses/VoidDailiesDUCK.cs
+//cs_include DUCKScripts\UltrasDUCK\CoreDUCK.cs
+//cs_include DUCKScripts\UltrasDUCK\SevenPlayerUltras\AstralEmpyreanDUCK.cs
+//cs_include DUCKScripts\UltrasDUCK\SevenPlayerUltras\KathoolDepthsDUCK.cs
+//cs_include DUCKScripts\UltrasDUCK\SevenPlayerUltras\DeimosDUCK.cs
+//cs_include DUCKScripts\UltrasDUCK\SevenPlayerUltras\LegionLichLordDUCK.cs
+//cs_include DUCKScripts\UltrasDUCK\SevenPlayerUltras\TheBeastDUCK.cs
+//cs_include DUCKScripts\UltrasDUCK\SevenPlayerUltras\KasukoDUCK.cs
+//cs_include DUCKScripts\UltrasDUCK\SevenPlayerUltras\IceWingDUCK.cs
+//cs_include DUCKScripts\UltrasDUCK\VoidBosses\VoidXyfragDUCK.cs
+//cs_include DUCKScripts\UltrasDUCK\VoidBosses\VoidNightbaneDUCK.cs
+//cs_include DUCKScripts\UltrasDUCK\VoidBosses\VoidFlibbitiestgibbetDUCK.cs
+//cs_include DUCKScripts\UltrasDUCK\VoidBosses\VoidDailiesDUCK.cs
 using System;
 using System.Collections.Generic;
 using Skua.Core.Interfaces;
@@ -310,3 +310,4 @@ public class AllUltras7DUCK
         return count;
     }
 }
+

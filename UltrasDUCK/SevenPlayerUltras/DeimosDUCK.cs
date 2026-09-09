@@ -6,7 +6,7 @@ tags: ultra, deimos, devastator deimos, seven-player, army, coreduck, legion dai
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
+//cs_include DUCKScripts\UltrasDUCK\CoreDUCK.cs
 using System;
 using System.Collections.Generic;
 using Skua.Core.Interfaces;
@@ -349,3 +349,4 @@ public class DeimosDUCK
 
     private bool Sync(string step) => Duck.SyncArmy(step);
 }
+

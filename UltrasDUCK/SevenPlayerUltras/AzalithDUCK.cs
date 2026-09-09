@@ -6,7 +6,7 @@ tags: ultra, azalith, celestialpast, the divine will, seven-player, army, coredu
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
+//cs_include DUCKScripts\UltrasDUCK\CoreDUCK.cs
 using System;
 using System.Collections.Generic;
 using Skua.Core.Interfaces;
@@ -355,3 +355,4 @@ public class AzalithDUCK
 
     private bool Sync(string step) => Duck.SyncArmy(step);
 }
+

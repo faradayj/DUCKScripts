@@ -1,4 +1,4 @@
-/*
+﻿/*
 name: Void Flibbitiestgibbet DUCK
 description: Seven-player DUCK script for Void Flibbitiestgibbet.
 tags: void, flibbi, challenge boss, seven-player, army, coreduck
@@ -6,7 +6,7 @@ tags: void, flibbi, challenge boss, seven-player, army, coreduck
 
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
-//cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
+//cs_include DUCKScripts\UltrasDUCK\CoreDUCK.cs
 using System;
 using System.Collections.Generic;
 using Skua.Core.Interfaces;
@@ -453,3 +453,4 @@ public class VoidFlibbitiestgibbetDUCK
         return true;
     }
 }
+
