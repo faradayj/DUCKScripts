@@ -1,5 +1,5 @@
-﻿/*
-name: Champion Drakath LW
+/*
+name: Ultra Drakath DUCK
 description: Four-player CoreDUCK Army script for Champion Drakath.
 tags: ultra, champion drakath, weekly, army, coreduck
 */
@@ -16,16 +16,6 @@ using Skua.Core.Options;
 
 public class UltraDrakathDUCK
 {
-    public enum ArmyComposition
-    {
-        Default,
-        Stable,
-        Reliable,
-        Optimized,
-        Pay2Win,
-        Test,
-    }
-
     private enum FightResult
     {
         Defeated,
@@ -41,25 +31,10 @@ public class UltraDrakathDUCK
     {
         16_500_000,
         12_500_000,
-        6_200_000,
-    };
-
-    private static readonly int[] ArchPaladinTauntThresholds =
-    {
-        18_500_000,
-        14_500_000,
-        8_200_000,
-        4_200_000,
-    };
-
-    private static readonly int[] AdjustedStoneCrusherTauntThresholds =
-    {
-        16_500_000,
-        12_500_000,
         6_500_000,
     };
 
-    private static readonly int[] AdjustedArchPaladinTauntThresholds =
+    private static readonly int[] ArchPaladinTauntThresholds =
     {
         18_500_000,
         14_500_000,
@@ -67,7 +42,7 @@ public class UltraDrakathDUCK
         4_500_000,
     };
 
-    private const string LogPrefix = "Champion Drakath LW";
+    private const string LogPrefix = "UltraDrakathDUCK";
     private const string SyncFileName = "UltraDrakathDUCK.sync";
     private const string MapName = "championdrakath";
     private const string SafeCell = "Enter";
@@ -90,7 +65,6 @@ public class UltraDrakathDUCK
     private bool isStoneCrusher;
     private bool isArchPaladin;
     private int privateRoomNumber = DefaultPrivateRoomNumber;
-    private ArmyComposition armyComposition;
     private bool masterMode;
     private UltraRunResult runResult = UltraRunResult.Failed;
 
@@ -232,23 +206,28 @@ public class UltraDrakathDUCK
         )
         {
             Duck.JoinRoom(MapName, privateRoomNumber, SafeCell, SafePad);
+            Duck.FileLog($"{playerAlias} joined {MapName}-{privateRoomNumber} for attempt {fightAttempt}.", LogPrefix);
 
             if (!PrepareSafeRoom(preset) || !Sync("FIGHT_READY"))
                 return false;
 
+            StartSkillEngine(preset);
             Core.Jump(BossCell, BossPad);
+            Duck.FileLog($"{playerAlias} jumped to {BossCell} for attempt {fightAttempt}.", LogPrefix);
 
-            if (Bot.ShouldExit || !Sync("START_FIGHT"))
-                return false;
-
-            FightResult result = Fight(preset, fightAttempt);
+            FightResult result = Fight(fightAttempt);
             if (result == FightResult.Defeated)
             {
+                Core.Jump(SafeCell, SafePad);
                 bool CreditCheck() =>
                     Bot.Quests.CanComplete(UltraQuestId) || Bot.Quests.IsDailyComplete(UltraQuestId);
 
                 if (Duck.VerifyArmyKillCredit(fightAttempt, CreditCheck, 4, LogPrefix))
+                {
+                    Duck.FileLog($"{playerAlias} confirmed Champion Drakath defeated on attempt {fightAttempt}.", LogPrefix);
+                    Core.Logger($"{LogPrefix} {playerAlias} confirmed Champion Drakath defeated.");
                     return true;
+                }
 
                 Core.Logger($"{LogPrefix} One or more players missed kill credit on attempt {fightAttempt}. Retrying fight with entire army...");
                 if (!HandleFightReset(fightAttempt))
@@ -269,13 +248,6 @@ public class UltraDrakathDUCK
         }
 
         return false;
-    }
-
-    private bool ValidateOptions()
-    {
-        armyComposition = ArmyComposition.Default;
-        if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
-        return Duck.ValidatePrivateRoomNumber(privateRoomNumber);
     }
 
     private bool Prepare(ClassPreset preset)
@@ -311,8 +283,7 @@ public class UltraDrakathDUCK
 
     private bool PrepareSafeRoom(ClassPreset preset)
     {
-        if (true)
-            Duck.UsePotions(preset.Tonic, preset.Elixir, preset.CombatPotion);
+        Duck.UsePotions(preset.Tonic, preset.Elixir, preset.CombatPotion);
 
         if (isTaunter)
             Duck.EquipScroll(EnrageScroll);
@@ -321,11 +292,8 @@ public class UltraDrakathDUCK
         return !Bot.ShouldExit;
     }
 
-    private FightResult Fight(ClassPreset preset, int fightAttempt)
+    private void StartSkillEngine(ClassPreset preset)
     {
-        int[] tauntThresholds = GetTauntThresholds();
-        int tauntIndex = 0;
-
         Duck.StartSkillEngine(
             preset.Skills,
             playerAlias,
@@ -333,95 +301,94 @@ public class UltraDrakathDUCK
             LogPrefix,
             preset.SkillMode,
             maintainedPotion: !isTaunter
-                && true
-                    ? preset.CombatPotion
-                    : null
+                ? preset.CombatPotion
+                : null
         );
+        Duck.FileLog($"{playerAlias} started skill engine.", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} started fighting.");
+    }
 
-        while (!Bot.ShouldExit)
+    private FightResult Fight(int fightAttempt)
+    {
+        try
         {
-            if (!Duck.IsMonsterAlive(BossMapId))
-                break;
+            int[] tauntThresholds = GetTauntThresholds();
+            int tauntIndex = 0;
 
-            if (Duck.ShouldResetFight(fightAttempt))
+            while (!Bot.ShouldExit)
             {
-                Duck.StopSkillEngine();
-                return FightResult.Reset;
-            }
-
-            if (!Bot.Player.Alive)
-            {
-                Core.Logger($"{LogPrefix} {playerAlias} died.");
-
-                while (!Bot.ShouldExit && !Bot.Player.Alive)
-                {
-                    if (Duck.ShouldResetFight(fightAttempt))
-                    {
-                        Duck.StopSkillEngine();
-                        return FightResult.Reset;
-                    }
-
-                    Bot.Sleep(RespawnPollDelay);
-                }
-
-                if (Bot.ShouldExit)
-                    break;
-
                 if (!Duck.IsMonsterAlive(BossMapId))
                     break;
 
                 if (Duck.ShouldResetFight(fightAttempt))
-                {
-                    Duck.StopSkillEngine();
                     return FightResult.Reset;
+
+                if (!Bot.Player.Alive)
+                {
+                    Duck.FileLog($"{playerAlias} died.", LogPrefix);
+                    Core.Logger($"{LogPrefix} {playerAlias} died.");
+
+                    while (!Bot.ShouldExit && !Bot.Player.Alive)
+                    {
+                        if (Duck.ShouldResetFight(fightAttempt))
+                            return FightResult.Reset;
+
+                        Bot.Sleep(RespawnPollDelay);
+                    }
+
+                    if (Bot.ShouldExit)
+                        break;
+
+                    if (!Duck.IsMonsterAlive(BossMapId))
+                        break;
+
+                    if (Duck.ShouldResetFight(fightAttempt))
+                        return FightResult.Reset;
+
+                    Duck.FileLog($"{playerAlias} respawned.", LogPrefix);
+                    Core.Logger($"{LogPrefix} {playerAlias} respawned.");
+
+                    if (Duck.IsMonsterAlive(BossMapId) && !IsInBossRoom())
+                        Core.Jump(BossCell, BossPad);
+
+                    continue;
                 }
 
-                Core.Logger($"{LogPrefix} {playerAlias} respawned.");
+                int bossHealth = Duck.GetMonsterHP(BossMapId);
+                Duck.MaintainTarget(BossMapId);
 
                 if (
-                    Duck.IsMonsterAlive(BossMapId)
-                    && (Bot.Player.Cell != BossCell || Bot.Player.Pad != BossPad)
+                    tauntIndex < tauntThresholds.Length
+                    && bossHealth > 0
+                    && bossHealth <= tauntThresholds[tauntIndex]
                 )
-                    Core.Jump(BossCell, BossPad);
-
-                continue;
-            }
-
-            int bossHealth = Duck.GetMonsterHP(BossMapId);
-            Duck.MaintainTarget(BossMapId);
-
-            if (
-                tauntIndex < tauntThresholds.Length
-                && bossHealth > 0
-                && bossHealth <= tauntThresholds[tauntIndex]
-            )
-            {
-                int threshold = tauntThresholds[tauntIndex];
-                if (armyComposition == ArmyComposition.Test)
-                    Duck.RequestAbsolutePriorityTaunt(BossMapId);
-                else
+                {
+                    int threshold = tauntThresholds[tauntIndex];
                     Duck.RequestTaunt(BossMapId);
-                tauntIndex++;
-                Core.Logger(
-                    $"{LogPrefix} {playerAlias} requested taunt at {threshold} HP."
-                );
+                    tauntIndex++;
+                    Duck.FileLog($"{playerAlias} requested taunt at {threshold} HP.", LogPrefix);
+                    Core.Logger(
+                        $"{LogPrefix} {playerAlias} requested taunt at {threshold} HP."
+                    );
+                }
+
+                Bot.Sleep(FightPollDelay);
             }
 
-            Bot.Sleep(FightPollDelay);
+            if (Bot.ShouldExit)
+                return FightResult.Stopped;
+
+            return FightResult.Defeated;
         }
-
-        Duck.StopSkillEngine();
-
-        if (Bot.ShouldExit)
-            return FightResult.Stopped;
-
-        Core.Logger($"{LogPrefix} {playerAlias} confirmed Champion Drakath defeated.");
-        return FightResult.Defeated;
+        finally
+        {
+            Duck.StopSkillEngine();
+        }
     }
 
     private bool HandleFightReset(int fightAttempt)
     {
+        Duck.FileLog($"{playerAlias} executing fight reset for attempt {fightAttempt}.", LogPrefix);
         Duck.StopSkillEngine();
         Bot.Combat.CancelTarget();
 
@@ -442,8 +409,8 @@ public class UltraDrakathDUCK
             Core.Logger(
                 $"{LogPrefix} {playerAlias} could not reach the safe room after reset.",
                 "HandleFightReset",
-                messageBox: true,
-                stopBot: true
+                messageBox: !masterMode,
+                stopBot: !masterMode
             );
             return false;
         }
@@ -453,20 +420,7 @@ public class UltraDrakathDUCK
 
     private void StopArmyAfterFailedAttempts()
     {
-        if (masterMode)
-        {
-            if (Duck.IsArmyPlayer(1))
-                Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
-            else
-                Duck.SyncArmy("STOP_CHECK");
-
-            Core.Logger(
-                $"{LogPrefix} failed after {MaxFightAttempts} fight attempts.",
-                "RunFightAttempts"
-            );
-            return;
-        }
-
+        Duck.FileLog($"{playerAlias} failed after {MaxFightAttempts} fight attempts.", LogPrefix);
         if (Duck.IsArmyPlayer(1))
             Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
         else
@@ -475,62 +429,39 @@ public class UltraDrakathDUCK
         Core.Logger(
             $"{LogPrefix} failed after {MaxFightAttempts} fight attempts.",
             "RunFightAttempts",
-            messageBox: true,
-            stopBot: true
+            messageBox: !masterMode,
+            stopBot: !masterMode
         );
     }
 
     private bool IsInSafeRoom() =>
-        Bot.Player.Cell == SafeCell && Bot.Player.Pad == SafePad;
+        string.Equals(Bot.Player.Cell, SafeCell, StringComparison.OrdinalIgnoreCase);
 
-    
-
-    
+    private bool IsInBossRoom() =>
+        string.Equals(Bot.Player.Cell, BossCell, StringComparison.OrdinalIgnoreCase);
 
     private int[] GetTauntThresholds()
     {
         if (isStoneCrusher)
-            return AdjustedStoneCrusherTauntThresholds;
+            return StoneCrusherTauntThresholds;
 
         if (isArchPaladin)
-            return AdjustedArchPaladinTauntThresholds;
+            return ArchPaladinTauntThresholds;
 
         return Array.Empty<int>();
     }
 
-
-
     private bool Sync(string step)
     {
+        Duck.FileLog($"{playerAlias} syncing on {step}...", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} entering {step}.");
 
-        if (!Duck.SyncArmy(step))
+        bool success = Duck.SyncArmy(step);
+        Duck.FileLog($"{playerAlias} sync {step} => {(success ? "SUCCESS" : "TIMEOUT/FAILED")}", LogPrefix);
+        if (!success)
             return false;
 
         Core.Logger($"{LogPrefix} {playerAlias} continued from {step}.");
         return true;
-    }
-
-    private void StopArmy()
-    {
-        if (Duck.IsArmyPlayer(1))
-        {
-            Bot.Sleep(2000);
-
-            if (Bot.ShouldExit)
-                return;
-
-            if (Duck.StopArmySync("COMPLETE"))
-                Core.Logger($"{LogPrefix} playerOne published COMPLETE.");
-            else
-                Core.Logger($"{LogPrefix} playerOne could not publish COMPLETE.");
-
-            return;
-        }
-
-        if (Duck.SyncArmy("STOP_CHECK"))
-            Core.Logger($"{LogPrefix} {playerAlias} unexpectedly passed STOP_CHECK.");
-        else
-            Core.Logger($"{LogPrefix} {playerAlias} detected COMPLETE.");
     }
 }
