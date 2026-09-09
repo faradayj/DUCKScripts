@@ -1,4 +1,4 @@
-﻿/*
+/*
 name: Astral Empyrean DUCK
 description: Seven-player CoreDUCK Army script for Astral Empyrean.
 tags: ultra, astral empyrean, seven-player, army, coreduck
@@ -120,6 +120,9 @@ public class AstralEmpyreanDUCK
 
         return runResult;
     }
+
+    public UltraRunResult RunFromMaster(int roomNumber = DefaultPrivateRoomNumber) =>
+        Run(isMasterMode: true, masterRoomNumber: roomNumber);
 
     private void ExecuteScript()
     {
@@ -253,7 +256,7 @@ public class AstralEmpyreanDUCK
             )
                 continue;
 
-            Core.Logger("Vainglory is enhanced on the cape. Astral Empyrean will fail.", "Prepare", messageBox: true);
+            Core.Logger("Vainglory is enhanced on the cape. Astral Empyrean will fail.", "Prepare", messageBox: !masterMode);
             return;
         }
     }
@@ -274,6 +277,7 @@ public class AstralEmpyreanDUCK
         for (int fightAttempt = 1; fightAttempt <= MaxFightAttempts && !Bot.ShouldExit; fightAttempt++)
         {
             Duck.JoinRoom(MapName, privateRoomNumber, SafeCell, SafePad);
+            Duck.FileLog($"{playerAlias} joined {MapName}-{privateRoomNumber} for attempt {fightAttempt}.", LogPrefix);
 
             if (!PrepareSafeRoom(preset))
                 return false;
@@ -292,9 +296,7 @@ public class AstralEmpyreanDUCK
                     return false;
 
                 Core.Jump(BossCell, BossPad);
-
-                if (Bot.ShouldExit || !Sync("START_FIGHT"))
-                    return false;
+                Duck.FileLog($"{playerAlias} jumped to {BossCell} for attempt {fightAttempt}.", LogPrefix);
 
                 result = Fight(preset, fightAttempt);
             }
@@ -306,12 +308,17 @@ public class AstralEmpyreanDUCK
 
             if (result == FightResult.Defeated)
             {
+                Core.Jump(SafeCell, SafePad);
                 Duck.EnsureAlive(15);
                 bool CreditCheck() =>
                     Bot.Quests.CanComplete(UltraQuestId) || Bot.Quests.IsDailyComplete(UltraQuestId);
 
                 if (Duck.VerifyArmyKillCredit(fightAttempt, CreditCheck, 7, LogPrefix, timeoutMs: 8000))
+                {
+                    Duck.FileLog($"{playerAlias} confirmed Astral Empyrean defeated on attempt {fightAttempt}.", LogPrefix);
+                    Core.Logger($"{LogPrefix} {playerAlias} confirmed Astral Empyrean defeated.");
                     return true;
+                }
 
                 Core.Logger($"{LogPrefix} One or more players missed kill credit on attempt {fightAttempt}. Retrying fight with entire army...");
                 result = FightResult.Reset;
@@ -322,6 +329,7 @@ public class AstralEmpyreanDUCK
 
             if (fightAttempt >= MaxFightAttempts)
             {
+                StopArmyAfterFailedAttempts();
                 runResult = UltraRunResult.AttemptsExhausted;
                 return false;
             }
@@ -347,71 +355,75 @@ public class AstralEmpyreanDUCK
         DateTime openingTauntAt = DateTime.UtcNow.AddMilliseconds(1500);
         bool openingTauntRequested = !isTaunterTwo;
 
-        while (!Bot.ShouldExit)
+        try
         {
-            DrainZoneEvents(move: Bot.Player.Alive);
-
-            if (Duck.ShouldResetFight(fightAttempt, DeathResetThreshold))
+            while (!Bot.ShouldExit)
             {
-                StopFightCombat();
-                return FightResult.Reset;
-            }
-
-            if (!Bot.Player.Alive)
-            {
-                while (!Bot.ShouldExit && !Bot.Player.Alive)
-                {
-                    DrainZoneEvents(move: false);
-                    ProcessStarfireDetections(ref nextStarfireCycle, requestTaunt: false);
-                    ProcessStardustBreathDetections(ref nextStardustBreath, requestHeal: false);
-
-                    if (Duck.ShouldResetFight(fightAttempt, DeathResetThreshold))
-                    {
-                        StopFightCombat();
-                        return FightResult.Reset;
-                    }
-
-                    Bot.Sleep(RespawnPollDelay);
-                }
-
-                if (Bot.ShouldExit)
-                    break;
-
-                if (!Duck.IsMonsterAlive(BossMapId) && bossObservedAlive)
-                    break;
+                DrainZoneEvents(move: Bot.Player.Alive);
 
                 if (Duck.ShouldResetFight(fightAttempt, DeathResetThreshold))
-                {
-                    StopFightCombat();
                     return FightResult.Reset;
+
+                if (!Bot.Player.Alive)
+                {
+                    Duck.FileLog($"{playerAlias} died.", LogPrefix);
+                    Core.Logger($"{LogPrefix} {playerAlias} died.");
+
+                    while (!Bot.ShouldExit && !Bot.Player.Alive)
+                    {
+                        DrainZoneEvents(move: false);
+                        ProcessStarfireDetections(ref nextStarfireCycle, requestTaunt: false);
+                        ProcessStardustBreathDetections(ref nextStardustBreath, requestHeal: false);
+
+                        if (Duck.ShouldResetFight(fightAttempt, DeathResetThreshold))
+                            return FightResult.Reset;
+
+                        Bot.Sleep(RespawnPollDelay);
+                    }
+
+                    if (Bot.ShouldExit)
+                        break;
+
+                    if (!Duck.IsMonsterAlive(BossMapId) && bossObservedAlive)
+                        break;
+
+                    if (Duck.ShouldResetFight(fightAttempt, DeathResetThreshold))
+                        return FightResult.Reset;
+
+                    Duck.FileLog($"{playerAlias} respawned.", LogPrefix);
+                    Core.Logger($"{LogPrefix} {playerAlias} respawned.");
+
+                    if (Duck.IsMonsterAlive(BossMapId) && !IsInBossRoom())
+                        Core.Jump(BossCell, BossPad);
+
+                    continue;
                 }
 
-                if (Bot.Player.Cell != BossCell || Bot.Player.Pad != BossPad)
-                    Core.Jump(BossCell, BossPad);
+                bool bossAlive = Duck.IsMonsterAlive(BossMapId);
+                if (bossAlive)
+                    bossObservedAlive = true;
+                else if (bossObservedAlive)
+                    break;
 
-                continue;
+                if (!openingTauntRequested && bossAlive && DateTime.UtcNow >= openingTauntAt)
+                {
+                    openingTauntRequested = true;
+                    Duck.RequestAbsolutePriorityTaunt(BossMapId);
+                    Duck.FileLog($"{playerAlias} requested opening taunt.", LogPrefix);
+                }
+
+                Duck.MaintainTarget(BossMapId);
+                ProcessStarfireDetections(ref nextStarfireCycle, requestTaunt: true);
+                ProcessStardustBreathDetections(ref nextStardustBreath, requestHeal: true);
+                Bot.Sleep(FightPollDelay);
             }
 
-            bool bossAlive = Duck.IsMonsterAlive(BossMapId);
-            if (bossAlive)
-                bossObservedAlive = true;
-            else if (bossObservedAlive)
-                break;
-
-            if (!openingTauntRequested && bossAlive && DateTime.UtcNow >= openingTauntAt)
-            {
-                openingTauntRequested = true;
-                Duck.RequestAbsolutePriorityTaunt(BossMapId);
-            }
-
-            Duck.MaintainTarget(BossMapId);
-            ProcessStarfireDetections(ref nextStarfireCycle, requestTaunt: true);
-            ProcessStardustBreathDetections(ref nextStardustBreath, requestHeal: true);
-            Bot.Sleep(FightPollDelay);
+            return (Bot.ShouldExit || !bossObservedAlive) ? FightResult.Stopped : FightResult.Defeated;
         }
-
-        StopFightCombat();
-        return (Bot.ShouldExit || !bossObservedAlive) ? FightResult.Stopped : FightResult.Defeated;
+        finally
+        {
+            StopFightCombat();
+        }
     }
 
     private void ProcessStarfireDetections(ref int nextStarfireCycle, bool requestTaunt)
@@ -514,6 +526,7 @@ public class AstralEmpyreanDUCK
 
     private bool HandleFightReset(int fightAttempt)
     {
+        Duck.FileLog($"{playerAlias} executing fight reset for attempt {fightAttempt}.", LogPrefix);
         StopFightCombat();
 
         while (!Bot.ShouldExit && !Bot.Player.Alive)
@@ -528,6 +541,17 @@ public class AstralEmpyreanDUCK
         Duck.ShouldResetFight(fightAttempt, DeathResetThreshold);
         Core.Jump(SafeCell, SafePad);
 
+        if (!IsInSafeRoom())
+        {
+            Core.Logger(
+                $"{LogPrefix} {playerAlias} could not reach the safe room after reset.",
+                "HandleFightReset",
+                messageBox: !masterMode,
+                stopBot: !masterMode
+            );
+            return false;
+        }
+
         return Sync($"FIGHT_RESET_{fightAttempt}_SAFE");
     }
 
@@ -537,5 +561,39 @@ public class AstralEmpyreanDUCK
         Bot.Combat.CancelTarget();
     }
 
-    private bool Sync(string step) => Duck.SyncArmy(step);
+    private void StopArmyAfterFailedAttempts()
+    {
+        Duck.FileLog($"{playerAlias} failed after {MaxFightAttempts} fight attempts.", LogPrefix);
+        if (Duck.IsArmyPlayer(1))
+            Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
+        else
+            Duck.SyncArmy("STOP_CHECK");
+
+        Core.Logger(
+            $"{LogPrefix} failed after {MaxFightAttempts} fight attempts.",
+            "RunFightAttempts",
+            messageBox: !masterMode,
+            stopBot: !masterMode
+        );
+    }
+
+    private bool IsInSafeRoom() =>
+        string.Equals(Bot.Player.Cell, SafeCell, StringComparison.OrdinalIgnoreCase);
+
+    private bool IsInBossRoom() =>
+        string.Equals(Bot.Player.Cell, BossCell, StringComparison.OrdinalIgnoreCase);
+
+    private bool Sync(string step)
+    {
+        Duck.FileLog($"{playerAlias} syncing on {step}...", LogPrefix);
+        Core.Logger($"{LogPrefix} {playerAlias} entering {step}.");
+
+        bool success = Duck.SyncArmy(step);
+        Duck.FileLog($"{playerAlias} sync {step} => {(success ? "SUCCESS" : "TIMEOUT/FAILED")}", LogPrefix);
+        if (!success)
+            return false;
+
+        Core.Logger($"{LogPrefix} {playerAlias} continued from {step}.");
+        return true;
+    }
 }
