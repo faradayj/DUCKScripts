@@ -1,5 +1,5 @@
-﻿/*
-name: Ultra Warden LW
+/*
+name: Ultra Warden DUCK
 description: Four-player CoreDUCK Army script for Ultra Warden.
 tags: ultra, warden, army, coreduck
 */
@@ -7,6 +7,7 @@ tags: ultra, warden, army, coreduck
 //cs_include Scripts/CoreBots.cs
 //cs_include Scripts/CoreAdvanced.cs
 //cs_include Scripts/DUCKScripts/UltrasDUCK/CoreDUCK.cs
+using System;
 using System.Collections.Generic;
 using Skua.Core.Interfaces;
 using Skua.Core.Options;
@@ -15,14 +16,6 @@ using Skua.Core.Options;
 
 public class UltraWardenDUCK
 {
-    public enum ArmyComposition
-    {
-        Default,
-        Stable,
-        Reliable,
-        Test,
-    }
-
     private enum FightResult
     {
         Defeated,
@@ -56,7 +49,6 @@ public class UltraWardenDUCK
     private string playerAlias = string.Empty;
     private bool isTaunter;
     private int privateRoomNumber = DefaultPrivateRoomNumber;
-    private ArmyComposition armyComposition;
     private bool masterMode;
     private UltraRunResult runResult = UltraRunResult.Failed;
 
@@ -183,23 +175,36 @@ public class UltraWardenDUCK
         )
         {
             Duck.JoinRoom(MapName, privateRoomNumber, SafeCell, SafePad);
+            Duck.FileLog($"{playerAlias} joined {MapName}-{privateRoomNumber} for attempt {fightAttempt}.", LogPrefix);
 
             if (!PrepareSafeRoom(preset) || !Sync("FIGHT_READY"))
                 return false;
 
+            // Pre-combat barrier principle: start skill engine, jump, and fight immediately without post-jump sync
+            Duck.StartSkillEngine(
+                preset.Skills,
+                playerAlias,
+                isTaunter,
+                LogPrefix,
+                preset.SkillMode
+            );
+
             Core.Jump(BossCell, BossPad);
+            Duck.FileLog($"{playerAlias} jumped to {BossCell} for attempt {fightAttempt}.", LogPrefix);
 
-            if (Bot.ShouldExit || !Sync("START_FIGHT"))
-                return false;
-
-            FightResult result = Fight(preset, fightAttempt);
+            FightResult result = Fight(fightAttempt);
             if (result == FightResult.Defeated)
             {
+                Core.Jump(SafeCell, SafePad);
                 bool CreditCheck() =>
                     Bot.Quests.CanComplete(UltraQuestId) || Bot.Quests.IsDailyComplete(UltraQuestId);
 
                 if (Duck.VerifyArmyKillCredit(fightAttempt, CreditCheck, 4, LogPrefix))
+                {
+                    Duck.FileLog($"{playerAlias} confirmed Ultra Warden defeated on attempt {fightAttempt}.", LogPrefix);
+                    Core.Logger($"{LogPrefix} {playerAlias} confirmed Ultra Warden defeated.");
                     return true;
+                }
 
                 Core.Logger($"{LogPrefix} One or more players missed kill credit on attempt {fightAttempt}. Retrying fight with entire army...");
                 if (!HandleFightReset(fightAttempt))
@@ -220,13 +225,6 @@ public class UltraWardenDUCK
         }
 
         return false;
-    }
-
-    private bool ValidateOptions()
-    {
-        armyComposition = ArmyComposition.Default;
-if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
-        return Duck.ValidatePrivateRoomNumber(privateRoomNumber);
     }
 
     private bool Prepare(ClassPreset preset)
@@ -272,99 +270,84 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
         return !Bot.ShouldExit;
     }
 
-    private FightResult Fight(ClassPreset preset, int fightAttempt)
+    private FightResult Fight(int fightAttempt)
     {
-        Duck.StartSkillEngine(
-            preset.Skills,
-            playerAlias,
-            isTaunter,
-            LogPrefix,
-            preset.SkillMode,
-            useSurvivalSkill: armyComposition != ArmyComposition.Stable
-        );
         Core.Logger($"{LogPrefix} {playerAlias} started fighting.");
 
         bool tauntRequested = false;
 
-        while (!Bot.ShouldExit)
+        try
         {
-            if (!Duck.IsMonsterAlive(MonsterMapId))
-                break;
-
-            if (Duck.ShouldResetFight(fightAttempt))
+            while (!Bot.ShouldExit)
             {
-                Duck.StopSkillEngine();
-                return FightResult.Reset;
-            }
-
-            if (!Bot.Player.Alive)
-            {
-                Core.Logger($"{LogPrefix} {playerAlias} died.");
-
-                while (!Bot.ShouldExit && !Bot.Player.Alive)
-                {
-                    if (Duck.ShouldResetFight(fightAttempt))
-                    {
-                        Duck.StopSkillEngine();
-                        return FightResult.Reset;
-                    }
-
-                    Bot.Sleep(RespawnPollDelay);
-                }
-
-                if (Bot.ShouldExit)
-                    break;
-
                 if (!Duck.IsMonsterAlive(MonsterMapId))
                     break;
 
                 if (Duck.ShouldResetFight(fightAttempt))
-                {
-                    Duck.StopSkillEngine();
                     return FightResult.Reset;
+
+                if (!Bot.Player.Alive)
+                {
+                    Core.Logger($"{LogPrefix} {playerAlias} died.");
+
+                    while (!Bot.ShouldExit && !Bot.Player.Alive)
+                    {
+                        if (Duck.ShouldResetFight(fightAttempt))
+                            return FightResult.Reset;
+
+                        Bot.Sleep(RespawnPollDelay);
+                    }
+
+                    if (Bot.ShouldExit)
+                        break;
+
+                    if (!Duck.IsMonsterAlive(MonsterMapId))
+                        break;
+
+                    if (Duck.ShouldResetFight(fightAttempt))
+                        return FightResult.Reset;
+
+                    Core.Logger($"{LogPrefix} {playerAlias} respawned.");
+
+                    if (Duck.IsMonsterAlive(MonsterMapId) && !IsInBossRoom())
+                        Core.Jump(BossCell, BossPad);
+
+                    continue;
                 }
 
-                Core.Logger($"{LogPrefix} {playerAlias} respawned.");
+                int monsterHealth = Duck.GetMonsterHP(MonsterMapId);
+                Duck.MaintainTarget(MonsterMapId);
 
                 if (
-                    Duck.IsMonsterAlive(MonsterMapId)
-                    && (Bot.Player.Cell != BossCell || Bot.Player.Pad != BossPad)
+                    isTaunter
+                    && !tauntRequested
+                    && monsterHealth > 0
+                    && monsterHealth <= TauntHealth
                 )
-                    Core.Jump(BossCell, BossPad);
+                {
+                    Duck.RequestAbsolutePriorityTaunt(MonsterMapId);
+                    tauntRequested = true;
+                    Duck.FileLog($"{playerAlias} requested Warden absolute priority taunt at {monsterHealth} HP.", LogPrefix);
+                    Core.Logger($"{LogPrefix} {playerAlias} requested the Warden taunt.");
+                }
 
-                continue;
+                Bot.Sleep(FightPollDelay);
             }
-
-            int monsterHealth = Duck.GetMonsterHP(MonsterMapId);
-            Duck.MaintainTarget(MonsterMapId);
-
-            if (
-                isTaunter
-                && !tauntRequested
-                && monsterHealth > 0
-                && monsterHealth <= TauntHealth
-            )
-            {
-                Duck.RequestAbsolutePriorityTaunt(MonsterMapId);
-                tauntRequested = true;
-                Duck.FileLog($"{playerAlias} requested Warden absolute priority taunt at {monsterHealth} HP.", LogPrefix);
-                Core.Logger($"{LogPrefix} {playerAlias} requested the Warden taunt.");
-            }
-
-            Bot.Sleep(FightPollDelay);
         }
-
-        Duck.StopSkillEngine();
+        finally
+        {
+            Duck.StopSkillEngine();
+        }
 
         if (Bot.ShouldExit)
             return FightResult.Stopped;
 
-        Core.Logger($"{LogPrefix} {playerAlias} confirmed Ultra Warden defeated.");
         return FightResult.Defeated;
     }
 
     private bool HandleFightReset(int fightAttempt)
     {
+        Duck.FileLog($"{playerAlias} executing fight reset for attempt {fightAttempt}.", LogPrefix);
         Duck.StopSkillEngine();
         Bot.Combat.CancelTarget();
 
@@ -385,8 +368,8 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
             Core.Logger(
                 $"{LogPrefix} {playerAlias} could not reach the safe room after reset.",
                 "HandleFightReset",
-                messageBox: true,
-                stopBot: true
+                messageBox: !masterMode,
+                stopBot: !masterMode
             );
             return false;
         }
@@ -396,20 +379,6 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
 
     private void StopArmyAfterFailedAttempts()
     {
-        if (masterMode)
-        {
-            if (Duck.IsArmyPlayer(1))
-                Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
-            else
-                Duck.SyncArmy("STOP_CHECK");
-
-            Core.Logger(
-                $"{LogPrefix} failed after {MaxFightAttempts} fight attempts.",
-                "RunFightAttempts"
-            );
-            return;
-        }
-
         if (Duck.IsArmyPlayer(1))
             Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
         else
@@ -418,83 +387,22 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
         Core.Logger(
             $"{LogPrefix} failed after {MaxFightAttempts} fight attempts.",
             "RunFightAttempts",
-            messageBox: true,
-            stopBot: true
+            messageBox: !masterMode,
+            stopBot: !masterMode
         );
     }
 
     private bool IsInSafeRoom() =>
-        Bot.Player.Cell == SafeCell && Bot.Player.Pad == SafePad;
+        string.Equals(Bot.Player.Cell, SafeCell, StringComparison.OrdinalIgnoreCase);
 
-    private ClassPreset GetClassPreset()
-    {
-        if (Duck.IsArmyPlayer(1))
-            return armyComposition switch
-            {
-                ArmyComposition.Stable => Duck.KingsEcho(),
-                ArmyComposition.Reliable => Duck.VerusDoomKnight(),
-                _ => Duck.LegionRevenant(),
-            };
-
-        if (Duck.IsArmyPlayer(2))
-            return Duck.StoneCrusher();
-
-        if (Duck.IsArmyPlayer(3))
-            return Duck.ArchPaladin();
-
-        return Duck.LordOfOrder();
-    }
-
-    private string GetPlayerAlias()
-    {
-        if (Duck.IsArmyPlayer(1))
-            return "playerOne";
-
-        if (Duck.IsArmyPlayer(2))
-            return "playerTwo";
-
-        if (Duck.IsArmyPlayer(3))
-            return "playerThree";
-
-        return "playerFour";
-    }
+    private bool IsInBossRoom() =>
+        string.Equals(Bot.Player.Cell, BossCell, StringComparison.OrdinalIgnoreCase);
 
     private bool Sync(string step)
     {
-        Duck.FileLog($"{playerAlias} entering sync step: {step}", LogPrefix);
-        Core.Logger($"{LogPrefix} {playerAlias} entering {step}.");
-
-        if (!Duck.SyncArmy(step))
-        {
-            Duck.FileLog($"{playerAlias} failed sync step: {step}", LogPrefix);
-            return false;
-        }
-
-        Duck.FileLog($"{playerAlias} continued from sync step: {step}", LogPrefix);
-        Core.Logger($"{LogPrefix} {playerAlias} continued from {step}.");
-        return true;
-    }
-
-    private void StopArmy()
-    {
-        if (Duck.IsArmyPlayer(1))
-        {
-            Bot.Sleep(2000);
-
-            if (Bot.ShouldExit)
-                return;
-
-            if (Duck.StopArmySync("COMPLETE"))
-                Core.Logger($"{LogPrefix} playerOne published COMPLETE.");
-            else
-                Core.Logger($"{LogPrefix} playerOne could not publish COMPLETE.");
-
-            return;
-        }
-
-        if (Duck.SyncArmy("STOP_CHECK"))
-            Core.Logger($"{LogPrefix} {playerAlias} unexpectedly passed STOP_CHECK.");
-        else
-            Core.Logger($"{LogPrefix} {playerAlias} detected COMPLETE.");
+        Duck.FileLog($"{playerAlias} syncing on {step}...", LogPrefix);
+        bool success = Duck.SyncArmy(step);
+        Duck.FileLog($"{playerAlias} sync {step} => {(success ? "SUCCESS" : "TIMEOUT/FAILED")}", LogPrefix);
+        return success;
     }
 }
