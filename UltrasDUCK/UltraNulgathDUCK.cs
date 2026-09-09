@@ -70,14 +70,10 @@ public class UltraNulgathDUCK
 
     private static readonly DuckSlotRequirement[] NulgathSlots = new[]
     {
-        DuckSlotRequirement.Flex(
-            "Damage / Debuff",
-            new[] { "Verus DoomKnight", "King's Echo", "Legion Revenant", "Arcana Invoker", "Void Highlord" },
-            isRequired: true
-        ),
-        DuckSlotRequirement.Specific("StoneCrusher", isRequired: true),
-        DuckSlotRequirement.Specific("ArchPaladin", isRequired: true),
-        DuckSlotRequirement.Specific("Lord of Order", isRequired: true),
+        new DuckSlotRequirement { CandidateClasses = new[] { "Verus DoomKnight", "King's Echo", "Legion Revenant", "Arcana Invoker", "Void Highlord" } },
+        new DuckSlotRequirement { CandidateClasses = new[] { "StoneCrusher" } },
+        new DuckSlotRequirement { CandidateClasses = new[] { "ArchPaladin" } },
+        new DuckSlotRequirement { CandidateClasses = new[] { "Lord of Order" } }
     };
 
     public void ScriptMain(IScriptInterface Bot)
