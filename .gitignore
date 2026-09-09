@@ -1,23 +1,35 @@
 # ==============================================================================
-# DUCKScripts / Customv2 Git Ignore Rules
+# DUCKScripts Git Ignore Rules
 # ==============================================================================
 
+# Local Roslyn Compilation Tester (Preserved locally for verify_skillset.ps1)
+SkuaCompileTester/
+
+# Internal Research, Deep Dives, & Architecture Manuals (Preserved locally)
+how/
+
+# Legacy v4 Framework & Scripts
+Ultrasv4/
+Army/
+
 # Runtime Logs
-Logs/*.log
+Logs/
 *.log
 
-# Compiler, Roslyn, & Build Artifacts
-SkuaCompileTester/bin/
-SkuaCompileTester/obj/
-bin/
-obj/
-
-# Multi-Client Army Lockstep Sync Files
+# Multi-Client Army Lockstep Sync State
 *.sync
 *.tmp
 *.bak
 
-# IDE & OS Files
+# Compiler & Build Artifacts
+bin/
+obj/
+
+# Python Caches
+__pycache__/
+*.pyc
+
+# IDE, OS, & Tooling Caches
 .vs/
 .vscode/
 Thumbs.db
