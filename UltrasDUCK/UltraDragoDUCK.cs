@@ -1,5 +1,5 @@
-﻿/*
-name: Ultra Drago LW
+/*
+name: Ultra Drago DUCK
 description: Four-player CoreDUCK Army script for Ultra Drago.
 tags: ultra, drago, army, coreduck
 */
@@ -16,14 +16,6 @@ using Skua.Core.Options;
 
 public class UltraDragoDUCK
 {
-    public enum ArmyComposition
-    {
-        Default,
-        Stable,
-        Reliable,
-        Test,
-    }
-
     private enum FightResult
     {
         Continue,
@@ -76,7 +68,6 @@ public class UltraDragoDUCK
     private string playerAlias = string.Empty;
     private bool isTaunter = true;
     private int privateRoomNumber = DefaultPrivateRoomNumber;
-    private ArmyComposition armyComposition = ArmyComposition.Default;
     private bool masterMode;
     private UltraRunResult runResult = UltraRunResult.Failed;
 
@@ -245,12 +236,9 @@ public class UltraDragoDUCK
         )
         {
             Duck.JoinRoom(MapName, privateRoomNumber, SafeCell, SafePad);
+            Duck.FileLog($"{playerAlias} joined {MapName}-{privateRoomNumber} for attempt {fightAttempt}.", LogPrefix);
 
             if (!PrepareSafeRoom(preset) || !Sync("FIGHT_READY"))
-                return false;
-
-            Duck.GenericPrebuff();
-            if (Bot.ShouldExit)
                 return false;
 
             long entryTimestamp = GetEntryTimestamp(fightAttempt);
@@ -267,14 +255,21 @@ public class UltraDragoDUCK
             )
                 return false;
 
+            Duck.FileLog($"{playerAlias} moving to {BossCell} for attempt {fightAttempt}.", LogPrefix);
+
             FightResult result = Fight(fightAttempt);
             if (result == FightResult.Defeated)
             {
+                Core.Jump(SafeCell, SafePad);
                 bool CreditCheck() =>
                     Bot.Quests.CanComplete(UltraQuestId) || Bot.Quests.IsDailyComplete(UltraQuestId);
 
                 if (Duck.VerifyArmyKillCredit(fightAttempt, CreditCheck, 4, LogPrefix))
+                {
+                    Duck.FileLog($"{playerAlias} confirmed Ultra Drago defeated on attempt {fightAttempt}.", LogPrefix);
+                    Core.Logger($"{LogPrefix} {playerAlias} confirmed Ultra Drago defeated.");
                     return true;
+                }
 
                 Core.Logger($"{LogPrefix} One or more players missed kill credit on attempt {fightAttempt}. Retrying fight with entire army...");
                 if (!HandleFightReset(fightAttempt))
@@ -295,13 +290,6 @@ public class UltraDragoDUCK
         }
 
         return false;
-    }
-
-    private bool ValidateOptions()
-    {
-        armyComposition = ArmyComposition.Default;
-        if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
-        return Duck.ValidatePrivateRoomNumber(privateRoomNumber);
     }
 
     private bool Prepare(ClassPreset preset)
@@ -341,15 +329,16 @@ public class UltraDragoDUCK
 
     private bool PrepareSafeRoom(ClassPreset preset)
     {
-        if (true)
-            Duck.UsePotions(
-                preset.Tonic,
-                preset.Elixir,
-                preset.CombatPotion
-            );
+        Duck.UsePotions(
+            preset.Tonic,
+            preset.Elixir,
+            preset.CombatPotion
+        );
 
         if (isTaunter)
             Duck.EquipScroll(EnrageScroll);
+
+        Duck.GenericPrebuff();
         return !Bot.ShouldExit;
     }
 
@@ -415,8 +404,8 @@ public class UltraDragoDUCK
         Core.Logger(
             $"{LogPrefix} {playerAlias} could not enter the boss room.",
             "AggressiveMoveToBossRoom",
-            messageBox: true,
-            stopBot: true
+            messageBox: !masterMode,
+            stopBot: !masterMode
         );
         return false;
     }
@@ -441,63 +430,14 @@ public class UltraDragoDUCK
 
     private FightResult Fight(int fightAttempt)
     {
-        if (armyComposition != ArmyComposition.Stable)
+        try
+        {
             return FightGuardPair(fightAttempt);
-
-        if (Duck.IsArmyPlayer(1))
-            return FightDamageDealer(fightAttempt);
-
-        if (Duck.IsArmyPlayer(4))
-            return FightImmediateAlgieTaunter(fightAttempt);
-
-        return FightGuardPair(fightAttempt);
-    }
-
-    private FightResult FightDamageDealer(int fightAttempt)
-    {
-        Core.Logger($"{LogPrefix} {playerAlias} started fighting.");
-
-        while (!Bot.ShouldExit)
-        {
-            FightResult result = GetFightResult(fightAttempt);
-            if (result != FightResult.Continue)
-                return FinishFight(result);
-
-            result = RecoverFromDeath(fightAttempt, out _);
-            if (result != FightResult.Continue)
-                return FinishFight(result);
-
-            Duck.MaintainTarget(GetNormalTarget());
-            Bot.Sleep(FightPollDelay);
         }
-
-        return FinishFight(FightResult.Stopped);
-    }
-
-    private FightResult FightImmediateAlgieTaunter(int fightAttempt)
-    {
-        Core.Logger($"{LogPrefix} {playerAlias} started fighting.");
-
-        while (!Bot.ShouldExit)
+        finally
         {
-            FightResult result = GetFightResult(fightAttempt);
-            if (result != FightResult.Continue)
-                return FinishFight(result);
-
-            result = RecoverFromDeath(fightAttempt, out _);
-            if (result != FightResult.Continue)
-                return FinishFight(result);
-
-            bool immediateTauntAccepted = Duck.IsMonsterAlive(AlgieMapId)
-                && Duck.RequestImmediateTaunt(AlgieMapId);
-
-            if (!immediateTauntAccepted)
-                Duck.MaintainTarget(GetNormalTarget());
-
-            Bot.Sleep(FightPollDelay);
+            Duck.StopSkillEngine();
         }
-
-        return FinishFight(FightResult.Stopped);
     }
 
     private FightResult FightGuardPair(int fightAttempt)
@@ -713,19 +653,13 @@ public class UltraDragoDUCK
     {
         SelectGuard(guardMapId);
         DateTimeOffset baseline = GetFocusExpiry();
-        if (armyComposition == ArmyComposition.Test)
-            Duck.RequestAbsolutePriorityTaunt(guardMapId);
-        else
-            Duck.RequestTaunt(guardMapId);
+        Duck.RequestTaunt(guardMapId);
         return baseline;
     }
 
     private void RequestImmediateGuardTaunt(int guardMapId)
     {
-        if (armyComposition == ArmyComposition.Test)
-            Duck.RequestAbsolutePriorityTaunt(guardMapId);
-        else
-            Duck.RequestImmediateTaunt(guardMapId);
+        Duck.RequestImmediateTaunt(guardMapId);
     }
 
     private void SelectGuard(int guardMapId)
@@ -823,10 +757,11 @@ public class UltraDragoDUCK
             LogPrefix,
             preset.SkillMode,
             maintainedPotion: !isTaunter
-                && true
-                    ? preset.CombatPotion
-                    : null
+                ? preset.CombatPotion
+                : null
         );
+        Duck.FileLog($"{playerAlias} started skill engine.", LogPrefix);
+        Core.Logger($"{LogPrefix} {playerAlias} started fighting.");
     }
 
     private FightResult GetFightResult(int fightAttempt)
@@ -846,6 +781,7 @@ public class UltraDragoDUCK
         if (Bot.Player.Alive)
             return FightResult.Continue;
 
+        Duck.FileLog($"{playerAlias} died.", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} died.");
 
         while (!Bot.ShouldExit && !Bot.Player.Alive)
@@ -863,6 +799,7 @@ public class UltraDragoDUCK
         if (result != FightResult.Continue)
             return result;
 
+        Duck.FileLog($"{playerAlias} respawned.", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} respawned.");
 
         if (!AggressiveMoveToBossRoom(GetNormalTarget()))
@@ -874,6 +811,7 @@ public class UltraDragoDUCK
 
     private bool HandleFightReset(int fightAttempt)
     {
+        Duck.FileLog($"{playerAlias} executing fight reset for attempt {fightAttempt}.", LogPrefix);
         Duck.StopSkillEngine();
         Bot.Combat.CancelTarget();
 
@@ -894,8 +832,8 @@ public class UltraDragoDUCK
             Core.Logger(
                 $"{LogPrefix} {playerAlias} could not reach the safe room after reset.",
                 "HandleFightReset",
-                messageBox: true,
-                stopBot: true
+                messageBox: !masterMode,
+                stopBot: !masterMode
             );
             return false;
         }
@@ -905,20 +843,7 @@ public class UltraDragoDUCK
 
     private void StopArmyAfterFailedAttempts()
     {
-        if (masterMode)
-        {
-            if (Duck.IsArmyPlayer(1))
-                Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
-            else
-                Duck.SyncArmy("STOP_CHECK");
-
-            Core.Logger(
-                $"{LogPrefix} failed after {MaxFightAttempts} fight attempts.",
-                "RunFightAttempts"
-            );
-            return;
-        }
-
+        Duck.FileLog($"{playerAlias} failed after {MaxFightAttempts} fight attempts.", LogPrefix);
         if (Duck.IsArmyPlayer(1))
             Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
         else
@@ -927,8 +852,8 @@ public class UltraDragoDUCK
         Core.Logger(
             $"{LogPrefix} failed after {MaxFightAttempts} fight attempts.",
             "RunFightAttempts",
-            messageBox: true,
-            stopBot: true
+            messageBox: !masterMode,
+            stopBot: !masterMode
         );
     }
 
@@ -963,42 +888,22 @@ public class UltraDragoDUCK
         Bot.Target.GetAura(FocusAura)?.ExpiresAt ?? DateTimeOffset.MinValue;
 
     private bool IsInBossRoom() =>
-        Bot.Player.Cell == BossCell && Bot.Player.Pad == BossPad;
+        string.Equals(Bot.Player.Cell, BossCell, StringComparison.OrdinalIgnoreCase);
 
     private bool IsInSafeRoom() =>
-        Bot.Player.Cell == SafeCell && Bot.Player.Pad == SafePad;
+        string.Equals(Bot.Player.Cell, SafeCell, StringComparison.OrdinalIgnoreCase);
 
     private bool Sync(string step)
     {
+        Duck.FileLog($"{playerAlias} syncing on {step}...", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} entering {step}.");
 
-        if (!Duck.SyncArmy(step))
+        bool success = Duck.SyncArmy(step);
+        Duck.FileLog($"{playerAlias} sync {step} => {(success ? "SUCCESS" : "TIMEOUT/FAILED")}", LogPrefix);
+        if (!success)
             return false;
 
         Core.Logger($"{LogPrefix} {playerAlias} continued from {step}.");
         return true;
-    }
-
-    private void StopArmy()
-    {
-        if (Duck.IsArmyPlayer(1))
-        {
-            Bot.Sleep(2000);
-
-            if (Bot.ShouldExit)
-                return;
-
-            if (Duck.StopArmySync("COMPLETE"))
-                Core.Logger($"{LogPrefix} playerOne published COMPLETE.");
-            else
-                Core.Logger($"{LogPrefix} playerOne could not publish COMPLETE.");
-
-            return;
-        }
-
-        if (Duck.SyncArmy("STOP_CHECK"))
-            Core.Logger($"{LogPrefix} {playerAlias} unexpectedly passed STOP_CHECK.");
-        else
-            Core.Logger($"{LogPrefix} {playerAlias} detected COMPLETE.");
     }
 }
