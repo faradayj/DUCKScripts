@@ -1,4 +1,4 @@
-﻿/*
+/*
 name: Ultra Engineer DUCK
 description: Four-player CoreDUCK Army script for Ultra Engineer.
 tags: ultra, engineer, army, coreduck
@@ -154,7 +154,7 @@ public class UltraEngineerDUCK
 
         Duck.CompleteUltraQuest(UltraQuestId);
 
-                if (Bot.ShouldExit || !Sync("FINISH"))
+        if (Bot.ShouldExit || !Sync("FINISH"))
             return;
 
         runResult = UltraRunResult.Completed;
@@ -175,23 +175,36 @@ public class UltraEngineerDUCK
         )
         {
             Duck.JoinRoom(MapName, privateRoomNumber, SafeCell, SafePad);
+            Duck.FileLog($"{playerAlias} joined {MapName}-{privateRoomNumber} for attempt {fightAttempt}.", LogPrefix);
 
             if (!PrepareSafeRoom(preset) || !Sync("FIGHT_READY"))
                 return false;
 
+            // Pre-combat barrier principle: start skill engine, jump, and fight immediately without post-jump sync
+            Duck.StartSkillEngine(
+                preset.Skills,
+                playerAlias,
+                false,
+                LogPrefix,
+                preset.SkillMode
+            );
+
             Core.Jump(BossCell, BossPad);
+            Duck.FileLog($"{playerAlias} jumped to {BossCell} for attempt {fightAttempt}.", LogPrefix);
 
-            if (Bot.ShouldExit || !Sync("START_FIGHT"))
-                return false;
-
-            FightResult result = Fight(preset, fightAttempt);
+            FightResult result = Fight(fightAttempt);
             if (result == FightResult.Defeated)
             {
+                Core.Jump(SafeCell, SafePad);
                 bool CreditCheck() =>
                     Bot.Quests.CanComplete(UltraQuestId) || Bot.Quests.IsDailyComplete(UltraQuestId);
 
                 if (Duck.VerifyArmyKillCredit(fightAttempt, CreditCheck, 4, LogPrefix))
+                {
+                    Duck.FileLog($"{playerAlias} confirmed Ultra Engineer defeated on attempt {fightAttempt}.", LogPrefix);
+                    Core.Logger($"{LogPrefix} {playerAlias} confirmed Ultra Engineer defeated.");
                     return true;
+                }
 
                 Core.Logger($"{LogPrefix} One or more players missed kill credit on attempt {fightAttempt}. Retrying fight with entire army...");
                 if (!HandleFightReset(fightAttempt))
@@ -247,88 +260,78 @@ public class UltraEngineerDUCK
         return !Bot.ShouldExit;
     }
 
-    private FightResult Fight(ClassPreset preset, int fightAttempt)
+    private FightResult Fight(int fightAttempt)
     {
-        Duck.StartSkillEngine(
-            preset.Skills,
-            playerAlias,
-            false,
-            LogPrefix,
-            preset.SkillMode
-        );
+        Duck.FileLog($"{playerAlias} started fighting.", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} started fighting.");
 
-        while (!Bot.ShouldExit)
+        try
         {
-            if (!Duck.IsMonsterAlive(MainBossMapId))
-                break;
-
-            if (Duck.ShouldResetFight(fightAttempt))
+            while (!Bot.ShouldExit)
             {
-                Duck.StopSkillEngine();
-                return FightResult.Reset;
-            }
-
-            if (!Bot.Player.Alive)
-            {
-                Core.Logger($"{LogPrefix} {playerAlias} died.");
-
-                while (!Bot.ShouldExit && !Bot.Player.Alive)
-                {
-                    if (Duck.ShouldResetFight(fightAttempt))
-                    {
-                        Duck.StopSkillEngine();
-                        return FightResult.Reset;
-                    }
-
-                    Bot.Sleep(RespawnPollDelay);
-                }
-
-                if (Bot.ShouldExit)
-                    break;
-
                 if (!Duck.IsMonsterAlive(MainBossMapId))
                     break;
 
                 if (Duck.ShouldResetFight(fightAttempt))
-                {
-                    Duck.StopSkillEngine();
                     return FightResult.Reset;
+
+                if (!Bot.Player.Alive)
+                {
+                    Duck.FileLog($"{playerAlias} died during attempt {fightAttempt}.", LogPrefix);
+                    Core.Logger($"{LogPrefix} {playerAlias} died.");
+
+                    while (!Bot.ShouldExit && !Bot.Player.Alive)
+                    {
+                        if (Duck.ShouldResetFight(fightAttempt))
+                            return FightResult.Reset;
+
+                        Bot.Sleep(RespawnPollDelay);
+                    }
+
+                    if (Bot.ShouldExit)
+                        break;
+
+                    if (!Duck.IsMonsterAlive(MainBossMapId))
+                        break;
+
+                    if (Duck.ShouldResetFight(fightAttempt))
+                        return FightResult.Reset;
+
+                    Duck.FileLog($"{playerAlias} respawned during attempt {fightAttempt}.", LogPrefix);
+                    Core.Logger($"{LogPrefix} {playerAlias} respawned.");
+
+                    if (Duck.IsMonsterAlive(MainBossMapId) && !IsInBossRoom())
+                        Core.Jump(BossCell, BossPad);
+
+                    continue;
                 }
 
-                Core.Logger($"{LogPrefix} {playerAlias} respawned.");
+                int targetMapId = Duck.IsMonsterAlive(FirstTargetMapId)
+                    ? FirstTargetMapId
+                    : Duck.IsMonsterAlive(SecondTargetMapId)
+                        ? SecondTargetMapId
+                        : MainBossMapId;
 
-                if (
-                    Duck.IsMonsterAlive(MainBossMapId)
-                    && (Bot.Player.Cell != BossCell || Bot.Player.Pad != BossPad)
-                )
-                    Core.Jump(BossCell, BossPad);
+                if (targetMapId != MainBossMapId)
+                {
+                    Duck.SetOrdinarySkillsSuppressed(
+                        Duck.IsMonsterAlive(FirstTargetMapId) && Duck.IsMonsterAlive(SecondTargetMapId)
+                    );
+                }
+                else
+                {
+                    Duck.SetOrdinarySkillsSuppressed(false);
+                }
 
-                continue;
+                Duck.MaintainTarget(targetMapId);
+                Bot.Sleep(FightPollDelay);
             }
-
-            int targetMapId = Duck.IsMonsterAlive(FirstTargetMapId)
-                ? FirstTargetMapId
-                : Duck.IsMonsterAlive(SecondTargetMapId)
-                    ? SecondTargetMapId
-                    : MainBossMapId;
-
-            if (targetMapId != MainBossMapId)
-            {
-                Duck.SetOrdinarySkillsSuppressed(
-                    Duck.IsMonsterAlive(FirstTargetMapId) && Duck.IsMonsterAlive(SecondTargetMapId)
-                );
-            }
-            else
-            {
-                Duck.SetOrdinarySkillsSuppressed(false);
-            }
-
-            Duck.MaintainTarget(targetMapId);
-            Bot.Sleep(FightPollDelay);
         }
-
-        Duck.StopSkillEngine();
+        finally
+        {
+            Duck.SetOrdinarySkillsSuppressed(false);
+            Duck.StopSkillEngine();
+        }
 
         if (Duck.ShouldResetFight(fightAttempt))
             return FightResult.Reset;
@@ -340,37 +343,70 @@ public class UltraEngineerDUCK
 
     private bool HandleFightReset(int fightAttempt)
     {
+        Duck.FileLog($"{playerAlias} executing fight reset for attempt {fightAttempt}.", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} retreating to safe cell after attempt {fightAttempt}.");
+        Duck.SetOrdinarySkillsSuppressed(false);
+        Duck.StopSkillEngine();
+        Bot.Combat.CancelTarget();
+
+        while (!Bot.ShouldExit && !Bot.Player.Alive)
+        {
+            Duck.ShouldResetFight(fightAttempt);
+            Bot.Sleep(RespawnPollDelay);
+        }
+
+        if (Bot.ShouldExit)
+            return false;
+
+        Duck.ShouldResetFight(fightAttempt);
         Core.Jump(SafeCell, SafePad);
+
+        if (!IsInSafeRoom())
+        {
+            Core.Logger(
+                $"{LogPrefix} {playerAlias} could not reach the safe room after reset.",
+                "HandleFightReset",
+                messageBox: !masterMode,
+                stopBot: !masterMode
+            );
+            return false;
+        }
+
         return Sync($"FIGHT_RESET_{fightAttempt}_SAFE");
     }
 
     private void StopArmyAfterFailedAttempts()
     {
-        Core.Logger(
-            $"{LogPrefix} failed after {MaxFightAttempts} attempts.",
-            LogPrefix,
-            messageBox: true,
-            stopBot: true
-        );
-        Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
-    }
-
-    private void StopArmy()
-    {
         if (Duck.IsArmyPlayer(1))
-        {
-            Bot.Sleep(1000);
-            if (Duck.StopArmySync("COMPLETE"))
-                Core.Logger($"{LogPrefix} playerOne published COMPLETE.");
-            else
-                Core.Logger($"{LogPrefix} playerOne could not publish COMPLETE.");
-        }
+            Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
         else
-        {
             Duck.SyncArmy("STOP_CHECK");
-        }
+
+        Core.Logger(
+            $"{LogPrefix} failed after {MaxFightAttempts} fight attempts.",
+            "RunFightAttempts",
+            messageBox: !masterMode,
+            stopBot: !masterMode
+        );
     }
 
-    private bool Sync(string stepName) => Duck.SyncArmy(stepName);
+    private bool IsInSafeRoom() =>
+        string.Equals(Bot.Player.Cell, SafeCell, StringComparison.OrdinalIgnoreCase);
+
+    private bool IsInBossRoom() =>
+        string.Equals(Bot.Player.Cell, BossCell, StringComparison.OrdinalIgnoreCase);
+
+    private bool Sync(string step)
+    {
+        Duck.FileLog($"{playerAlias} syncing on {step}...", LogPrefix);
+        Core.Logger($"{LogPrefix} {playerAlias} entering {step}.");
+
+        bool success = Duck.SyncArmy(step);
+        Duck.FileLog($"{playerAlias} sync {step} => {(success ? "SUCCESS" : "TIMEOUT/FAILED")}", LogPrefix);
+        if (!success)
+            return false;
+
+        Core.Logger($"{LogPrefix} {playerAlias} continued from {step}.");
+        return true;
+    }
 }
