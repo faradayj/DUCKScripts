@@ -1,4 +1,4 @@
-﻿/*
+/*
 name: Ultra Speaker LW
 description: Four-player Ultra Speaker Army script using CoreDUCK.
 tags: ultra, speaker, army, coreduck
@@ -99,13 +99,10 @@ public class UltraSpeakerDUCK
     private bool isArchPaladin;
     private bool isLordOfOrder;
     private bool isStoneCrusher;
-    private bool isDPS;
-    private DuckAssignmentResult? currentAssignResult;
 
     private string playerAlias = string.Empty;
     private bool masterMode;
     private UltraRunResult runResult = UltraRunResult.Failed;
-    private bool bruteForceMethod;
     private int privateRoomNumber = DefaultPrivateRoomNumber;
     private int equalizeDetectionCount;
 
@@ -159,7 +156,10 @@ public class UltraSpeakerDUCK
 
     private void Run()
     {
-        if (!ValidateOptions())
+        if (!masterMode)
+            privateRoomNumber = DefaultPrivateRoomNumber;
+
+        if (!Duck.ValidatePrivateRoomNumber(privateRoomNumber))
             return;
 
         DuckAssignmentResult? assignResult = Duck.AutoAssignAndEquip(
@@ -174,7 +174,6 @@ public class UltraSpeakerDUCK
         if (!Duck.StartArmySyncDynamic(SyncFileName, assignResult.DiscoveredPlayers))
             return;
 
-        currentAssignResult = assignResult;
         ClassPreset preset = assignResult.Preset;
         ApplySpeakerOverrides(preset, assignResult.RoleName);
         playerAlias = $"Player {assignResult.PlayerNumber} ({preset.ClassName})";
@@ -185,7 +184,6 @@ public class UltraSpeakerDUCK
         isStoneCrusher = string.Equals(preset.ClassName, "StoneCrusher", StringComparison.OrdinalIgnoreCase)
                       || string.Equals(preset.ClassName, "Infinity Titan", StringComparison.OrdinalIgnoreCase)
                       || string.Equals(preset.ClassName, "InfinityTitan", StringComparison.OrdinalIgnoreCase);
-        isDPS = !isArchPaladin && !isLordOfOrder && !isStoneCrusher;
 
         ResolveRolePlayerNumbers(assignResult);
 
@@ -292,7 +290,7 @@ public class UltraSpeakerDUCK
             try
             {
                 Core.Jump(BossCell, BossPad);
-                Duck.FileLog($"{playerAlias} jumped to boss room for attempt {fightAttempt}.", LogPrefix);
+                Duck.FileLog($"{playerAlias} jumped to {BossCell} for attempt {fightAttempt}.", LogPrefix);
 
                 result = Fight(fightAttempt);
             }
@@ -303,12 +301,16 @@ public class UltraSpeakerDUCK
 
             if (result == FightResult.Defeated)
             {
-                Duck.FileLog($"{playerAlias} confirmed Ultra Speaker defeated on attempt {fightAttempt}.", LogPrefix);
+                Core.Jump(SafeCell, SafePad);
                 bool CreditCheck() =>
                     Bot.Quests.CanComplete(UltraQuestId) || Bot.Quests.IsDailyComplete(UltraQuestId);
 
                 if (Duck.VerifyArmyKillCredit(fightAttempt, CreditCheck, 4, LogPrefix))
+                {
+                    Duck.FileLog($"{playerAlias} confirmed Ultra Speaker defeated on attempt {fightAttempt}.", LogPrefix);
+                    Core.Logger($"{LogPrefix} {playerAlias} confirmed Ultra Speaker defeated.");
                     return true;
+                }
 
                 Core.Logger($"{LogPrefix} One or more players missed kill credit on attempt {fightAttempt}. Retrying fight with entire army...");
                 if (!HandleFightReset(fightAttempt))
@@ -331,13 +333,6 @@ public class UltraSpeakerDUCK
         return false;
     }
 
-    private bool ValidateOptions()
-    {
-        bruteForceMethod = false;
-        if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
-        return Duck.ValidatePrivateRoomNumber(privateRoomNumber);
-    }
-
     private bool Prepare(ClassPreset preset)
     {
         Core.Logger($"{LogPrefix} {playerAlias} starting setup.");
@@ -346,30 +341,26 @@ public class UltraSpeakerDUCK
         if (Bot.ShouldExit)
             return false;
 
-        if (true)
-            Duck.PrepareEnhancements(
-                preset.BaseEnhancement,
-                preset.CapeEnhancement,
-                preset.HelmEnhancement,
-                preset.WeaponEnhancement,
-                weaponFallbacks: preset.WeaponEnhancementFallbacks
+        Duck.PrepareEnhancements(
+            preset.BaseEnhancement,
+            preset.CapeEnhancement,
+            preset.HelmEnhancement,
+            preset.WeaponEnhancement,
+            weaponFallbacks: preset.WeaponEnhancementFallbacks
+        );
+
+        if (isStoneCrusher)
+            preset.Elixir = Duck.GetDivineElixir(
+                preset,
+                playerAlias,
+                LogPrefix
             );
 
-        if (true)
-        {
-            if (isStoneCrusher)
-                preset.Elixir = Duck.GetDivineElixir(
-                    preset,
-                    playerAlias,
-                    LogPrefix
-                );
-
-            Duck.PreparePotions(
-                preset.Tonic,
-                preset.Elixir,
-                preset.CombatPotion
-            );
-        }
+        Duck.PreparePotions(
+            preset.Tonic,
+            preset.Elixir,
+            preset.CombatPotion
+        );
 
         if (IsTaunter())
             Duck.PrepareScrolls(EnrageScroll);
@@ -384,12 +375,11 @@ public class UltraSpeakerDUCK
 
     private bool PrepareSafeRoom(ClassPreset preset)
     {
-        if (true)
-            Duck.UsePotions(
-                preset.Tonic,
-                preset.Elixir,
-                preset.CombatPotion
-            );
+        Duck.UsePotions(
+            preset.Tonic,
+            preset.Elixir,
+            preset.CombatPotion
+        );
 
         if (IsTaunter())
             Duck.EquipScroll(EnrageScroll);
@@ -412,8 +402,8 @@ public class UltraSpeakerDUCK
             Core.Logger(
                 "Speaker packet detector could not be started.",
                 "StartFightSystems",
-                messageBox: true,
-                stopBot: true
+                messageBox: !masterMode,
+                stopBot: !masterMode
             );
             return false;
         }
@@ -428,9 +418,7 @@ public class UltraSpeakerDUCK
             IsTaunter(),
             LogPrefix,
             preset.SkillMode,
-            maintainedPotion: true
-                ? preset.CombatPotion
-                : null
+            maintainedPotion: preset.CombatPotion
         );
         return true;
     }
@@ -480,10 +468,7 @@ public class UltraSpeakerDUCK
                     return FightResult.Defeated;
             }
 
-            if (
-                !bruteForceMethod
-                && Duck.ShouldResetFight(fightAttempt)
-            )
+            if (Duck.ShouldResetFight(fightAttempt))
                 return FightResult.Reset;
 
             if (!localChartInvalid)
@@ -545,6 +530,7 @@ public class UltraSpeakerDUCK
                 if (!playerWasDead)
                 {
                     playerWasDead = true;
+                    Duck.FileLog($"{playerAlias} died.", LogPrefix);
                     Core.Logger($"{LogPrefix} {playerAlias} died.");
                 }
 
@@ -555,6 +541,7 @@ public class UltraSpeakerDUCK
             if (playerWasDead)
             {
                 playerWasDead = false;
+                Duck.FileLog($"{playerAlias} respawned.", LogPrefix);
                 Core.Logger($"{LogPrefix} {playerAlias} respawned.");
 
                 if (!IsInBossRoom())
@@ -576,13 +563,9 @@ public class UltraSpeakerDUCK
             if (IsInBossRoom())
             {
                 Duck.MaintainTarget(SpeakerMapId);
-
-                if (!bruteForceMethod)
-                {
-                    MaintainArchPaladinRighteousSeal(
-                        ref righteousSealSkillFourQueued
-                    );
-                }
+                MaintainArchPaladinRighteousSeal(
+                    ref righteousSealSkillFourQueued
+                );
             }
 
             Bot.Sleep(FightPollDelay);
@@ -633,6 +616,10 @@ public class UltraSpeakerDUCK
             {
                 Duck.RequestAbsolutePriorityTaunt(SpeakerMapId);
 
+                Duck.FileLog(
+                    $"{playerAlias} requested Fresh {GetWarningName(expected.Warning)} taunt.",
+                    LogPrefix
+                );
                 Core.Logger(
                     $"{LogPrefix} {playerAlias} requested Fresh {GetWarningName(expected.Warning)} taunt."
                 );
@@ -648,8 +635,7 @@ public class UltraSpeakerDUCK
                 Duck.ResumeSkillEngine();
 
             if (
-                !bruteForceMethod
-                && expected.Skill > 0
+                expected.Skill > 0
                 && Duck.IsArmyPlayer(expected.SkillOwner)
             )
             {
@@ -661,6 +647,10 @@ public class UltraSpeakerDUCK
                 )
                     righteousSealSkillFourQueued = false;
 
+                Duck.FileLog(
+                    $"{playerAlias} queued chart skill {expected.Skill}.",
+                    LogPrefix
+                );
                 Core.Logger(
                     $"{LogPrefix} {playerAlias} queued chart skill {expected.Skill}."
                 );
@@ -692,32 +682,30 @@ public class UltraSpeakerDUCK
 
             int cycle = nextDetection++;
             int owner = GetZoneOwner(cycle);
-            if (!bruteForceMethod)
+            if (
+                Duck.IsArmyPlayer(owner)
+                && !IsAtCoordinate(RedX, RedY)
+            )
             {
-                if (
-                    Duck.IsArmyPlayer(owner)
-                    && !IsAtCoordinate(RedX, RedY)
-                )
-                {
-                    mismatch = $"Equalize cycle {cycle} owner was not in the red zone.";
-                    return false;
-                }
+                mismatch = $"Equalize cycle {cycle} owner was not in the red zone.";
+                return false;
             }
 
             equalizeCycle = cycle;
             currentSection = ((cycle - 1) % 4) + 1;
             currentStep = 0;
 
-            if (!bruteForceMethod)
-            {
-                if (Duck.IsArmyPlayer(owner))
-                    zoneState.WaitingForSanctityCycle = cycle;
+            if (Duck.IsArmyPlayer(owner))
+                zoneState.WaitingForSanctityCycle = cycle;
 
-                int nextOwner = GetZoneOwner(cycle + 1);
-                if (Duck.IsArmyPlayer(nextOwner))
-                    zoneState.WaitingForClearCycle = cycle;
-            }
+            int nextOwner = GetZoneOwner(cycle + 1);
+            if (Duck.IsArmyPlayer(nextOwner))
+                zoneState.WaitingForClearCycle = cycle;
 
+            Duck.FileLog(
+                $"{playerAlias} entered Equalize cycle {cycle} section {currentSection}.",
+                LogPrefix
+            );
             Core.Logger(
                 $"{LogPrefix} {playerAlias} entered Equalize cycle {cycle} section {currentSection}."
             );
@@ -753,18 +741,16 @@ public class UltraSpeakerDUCK
                 Core.Logger(
                     $"{LogPrefix} {playerAlias} could not send {signal}.",
                     "ProcessZoneState",
-                    messageBox: true,
-                    stopBot: true
+                    messageBox: !masterMode,
+                    stopBot: !masterMode
                 );
                 return false;
             }
 
+            Duck.FileLog($"{playerAlias} sent {signal}.", LogPrefix);
             Core.Logger($"{LogPrefix} {playerAlias} sent {signal}.");
             return true;
         }
-
-        if (bruteForceMethod)
-            return true;
 
         if (state.WaitingForSanctityCycle > 0)
         {
@@ -778,6 +764,10 @@ public class UltraSpeakerDUCK
                 SafeX,
                 SafeY,
                 GetZoneClearSignal(fightAttempt, cycle)
+            );
+            Duck.FileLog(
+                $"{playerAlias} resolved Sanctity cycle {cycle} and moved safe.",
+                LogPrefix
             );
             Core.Logger(
                 $"{LogPrefix} {playerAlias} resolved Sanctity cycle {cycle} and moved safe."
@@ -800,6 +790,10 @@ public class UltraSpeakerDUCK
                 RedY,
                 string.Empty
             );
+            Duck.FileLog(
+                $"{playerAlias} received {clearSignal} and moved into the red zone.",
+                LogPrefix
+            );
             Core.Logger(
                 $"{LogPrefix} {playerAlias} received {clearSignal} and moved into the red zone."
             );
@@ -810,9 +804,7 @@ public class UltraSpeakerDUCK
 
     private void StartInitialMovement(ZoneState state)
     {
-        if (bruteForceMethod)
-            StartMovement(state, SafeX, SafeY, string.Empty);
-        else if (Duck.IsArmyPlayer(GetZoneOwner(1)))
+        if (Duck.IsArmyPlayer(GetZoneOwner(1)))
             StartMovement(state, RedX, RedY, string.Empty);
         else
             StartMovement(state, SafeX, SafeY, string.Empty);
@@ -829,12 +821,6 @@ public class UltraSpeakerDUCK
         state.ConfirmMovementAt = DateTimeOffset.MinValue;
         state.WaitingForSanctityCycle = 0;
         state.WaitingForClearCycle = 0;
-
-        if (bruteForceMethod)
-        {
-            StartMovement(state, SafeX, SafeY, string.Empty);
-            return;
-        }
 
         int nextCycle = equalizeCycle + 1;
         if (!Duck.IsArmyPlayer(GetZoneOwner(nextCycle)))
@@ -905,6 +891,7 @@ public class UltraSpeakerDUCK
     )
     {
         localChartInvalid = true;
+        Duck.FileLog($"{playerAlias} chart mismatch: {reason}", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} chart mismatch: {reason}");
 
         if (chartFailureSent)
@@ -916,13 +903,14 @@ public class UltraSpeakerDUCK
             Core.Logger(
                 $"{LogPrefix} {playerAlias} could not send {signal}.",
                 "ReportChartFailure",
-                messageBox: true,
-                stopBot: true
+                messageBox: !masterMode,
+                stopBot: !masterMode
             );
             return false;
         }
 
         chartFailureSent = true;
+        Duck.FileLog($"{playerAlias} sent {signal}.", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} sent {signal}.");
         return true;
     }
@@ -951,13 +939,14 @@ public class UltraSpeakerDUCK
             Core.Logger(
                 $"{LogPrefix} playerOne could not send {signal}.",
                 "PublishChartResetIfRequested",
-                messageBox: true,
-                stopBot: true
+                messageBox: !masterMode,
+                stopBot: !masterMode
             );
             return false;
         }
 
         chartResetSent = true;
+        Duck.FileLog($"playerOne sent {signal}.", LogPrefix);
         Core.Logger($"{LogPrefix} playerOne sent {signal}.");
         return true;
     }
@@ -992,6 +981,7 @@ public class UltraSpeakerDUCK
 
         Duck.RequestPrioritySkill(4);
         skillFourQueued = true;
+        Duck.FileLog($"{playerAlias} queued skill 4 for Righteous Seal.", LogPrefix);
         Core.Logger(
             $"{LogPrefix} {playerAlias} queued skill 4 for Righteous Seal."
         );
@@ -999,6 +989,7 @@ public class UltraSpeakerDUCK
 
     private bool HandleFightReset(int fightAttempt)
     {
+        Duck.FileLog($"{playerAlias} executing fight reset for attempt {fightAttempt}.", LogPrefix);
         StopFightSystems();
         Bot.Combat.CancelTarget();
 
@@ -1019,8 +1010,8 @@ public class UltraSpeakerDUCK
             Core.Logger(
                 $"{LogPrefix} {playerAlias} could not reach the safe room after reset.",
                 "HandleFightReset",
-                messageBox: true,
-                stopBot: true
+                messageBox: !masterMode,
+                stopBot: !masterMode
             );
             return false;
         }
@@ -1030,20 +1021,7 @@ public class UltraSpeakerDUCK
 
     private void StopArmyAfterFailedAttempts()
     {
-        if (masterMode)
-        {
-            if (Duck.IsArmyPlayer(1))
-                Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
-            else
-                Duck.SyncArmy("STOP_CHECK");
-
-            Core.Logger(
-                $"{LogPrefix} failed after {MaxFightAttempts} fight attempts.",
-                "RunFightAttempts"
-            );
-            return;
-        }
-
+        Duck.FileLog($"{playerAlias} failed after {MaxFightAttempts} fight attempts.", LogPrefix);
         if (Duck.IsArmyPlayer(1))
             Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
         else
@@ -1052,8 +1030,8 @@ public class UltraSpeakerDUCK
         Core.Logger(
             $"{LogPrefix} failed after {MaxFightAttempts} fight attempts.",
             "RunFightAttempts",
-            messageBox: true,
-            stopBot: true
+            messageBox: !masterMode,
+            stopBot: !masterMode
         );
     }
 
@@ -1130,40 +1108,15 @@ public class UltraSpeakerDUCK
 
     private bool Sync(string step)
     {
-        Duck.FileLog($"{playerAlias} entering sync step: {step}", LogPrefix);
+        Duck.FileLog($"{playerAlias} syncing on {step}...", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} entering {step}.");
 
-        if (!Duck.SyncArmy(step))
-        {
-            Duck.FileLog($"{playerAlias} failed sync step: {step}", LogPrefix);
+        bool success = Duck.SyncArmy(step);
+        Duck.FileLog($"{playerAlias} sync {step} => {(success ? "SUCCESS" : "TIMEOUT/FAILED")}", LogPrefix);
+        if (!success)
             return false;
-        }
 
-        Duck.FileLog($"{playerAlias} continued from sync step: {step}", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} continued from {step}.");
         return true;
-    }
-
-    private void StopArmy()
-    {
-        if (Duck.IsArmyPlayer(1))
-        {
-            Bot.Sleep(2000);
-
-            if (Bot.ShouldExit)
-                return;
-
-            if (Duck.StopArmySync("COMPLETE"))
-                Core.Logger($"{LogPrefix} playerOne published COMPLETE.");
-            else
-                Core.Logger($"{LogPrefix} playerOne could not publish COMPLETE.");
-
-            return;
-        }
-
-        if (Duck.SyncArmy("STOP_CHECK"))
-            Core.Logger($"{LogPrefix} {playerAlias} unexpectedly passed STOP_CHECK.");
-        else
-            Core.Logger($"{LogPrefix} {playerAlias} detected COMPLETE.");
     }
 }
