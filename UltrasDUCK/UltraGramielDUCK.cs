@@ -1,5 +1,5 @@
-﻿/*
-name: Ultra Gramiel LW
+/*
+name: Ultra Gramiel DUCK
 description: Four-player CoreDUCK Ultra Gramiel script.
 tags: ultra, gramiel, weekly, army, coreduck
 */
@@ -50,6 +50,7 @@ public class UltraGramielDUCK
     private const string CrystalChargeMessage =
         "The Grace Crystal prepares a defense shattering attack!";
     private const string ChargeAnimationMarker = "\"animStr\":\"Charge\"";
+    private const string CrystalACasterMarker = "\"cInf\":\"m:2\"";
     private const string SafeguardAuraMarker = "\"nam\":\"Safeguard\"";
     private const string GraceGivenAuraMarker = "\"nam\":\"Grace Given\"";
     private const string GramielCasterMarker = "\"cInf\":\"m:1\"";
@@ -86,7 +87,6 @@ public class UltraGramielDUCK
     private bool isShaman;
     private bool isVDK;
     private DuckAssignmentResult? currentAssignResult;
-    private DateTimeOffset lastCrystalTauntTime = DateTimeOffset.MinValue;
 
     private string playerAlias = string.Empty;
     private int privateRoomNumber = DefaultPrivateRoomNumber;
@@ -340,12 +340,6 @@ public class UltraGramielDUCK
         return false;
     }
 
-    private bool ValidateOptions()
-    {
-        if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
-        return Duck.ValidatePrivateRoomNumber(privateRoomNumber);
-    }
-
     private bool Prepare(ClassPreset preset)
     {
         Core.Logger($"{LogPrefix} {playerAlias} starting setup.");
@@ -400,8 +394,12 @@ public class UltraGramielDUCK
         if (
             Duck.StartPacketDetector(
                 PacketCommand,
-                new[] { CrystalChargeMessage, ChargeAnimationMarker },
-                debounceMs: 5000
+                new[]
+                {
+                    CrystalChargeMessage,
+                    ChargeAnimationMarker,
+                    CrystalACasterMarker,
+                }
             )
         )
             return true;
@@ -409,8 +407,8 @@ public class UltraGramielDUCK
         Core.Logger(
             "The crystal packet detector could not be started.",
             "RunFightAttempts",
-            messageBox: true,
-            stopBot: true
+            messageBox: !masterMode,
+            stopBot: !masterMode
         );
         return false;
     }
@@ -430,7 +428,6 @@ public class UltraGramielDUCK
                 ? "Safeguard"
                 : string.Empty
         );
-        lastCrystalTauntTime = DateTimeOffset.MinValue;
         Duck.FileLog($"{playerAlias} started Phase 1.", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} started Phase 1.");
 
@@ -876,8 +873,8 @@ public class UltraGramielDUCK
         Core.Logger(
             $"The Phase 2 {detectorName} packet detector could not be started.",
             "FightPhaseTwo",
-            messageBox: true,
-            stopBot: true
+            messageBox: !masterMode,
+            stopBot: !masterMode
         );
         return false;
     }
@@ -985,13 +982,6 @@ public class UltraGramielDUCK
             int cycle = nextDetection++;
             if (!bothCrystalsAlive || !OwnsTauntCycle(cycle))
                 continue;
-
-            if ((DateTimeOffset.Now - lastCrystalTauntTime).TotalSeconds < 8)
-            {
-                Core.Logger($"{LogPrefix} {playerAlias} skipping duplicate taunt cycle {cycle} (last taunt was {(DateTimeOffset.Now - lastCrystalTauntTime).TotalSeconds:F1}s ago).");
-                continue;
-            }
-            lastCrystalTauntTime = DateTimeOffset.Now;
 
             int crystalMapId = GetAssignedCrystalMapId();
             Duck.MaintainTarget(crystalMapId);
@@ -1223,8 +1213,8 @@ public class UltraGramielDUCK
             Core.Logger(
                 $"{LogPrefix} {playerAlias} could not reach the safe room after reset.",
                 "HandleFightReset",
-                messageBox: true,
-                stopBot: true
+                messageBox: !masterMode,
+                stopBot: !masterMode
             );
             return false;
         }
@@ -1265,7 +1255,7 @@ public class UltraGramielDUCK
         string.Equals(Bot.Player.Cell, SafeCell, StringComparison.OrdinalIgnoreCase);
 
     private bool IsInFightRoom() =>
-        Bot.Player.Cell == FightCell && Bot.Player.Pad == FightPad;
+        string.Equals(Bot.Player.Cell, FightCell, StringComparison.OrdinalIgnoreCase);
 
     private bool SuppressPlayerOneDuringHealingHold() =>
         isShaman || isVDK;
@@ -1277,35 +1267,15 @@ public class UltraGramielDUCK
 
     private bool Sync(string step)
     {
+        Duck.FileLog($"{playerAlias} syncing on {step}...", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} entering {step}.");
 
-        if (!Duck.SyncArmy(step))
+        bool success = Duck.SyncArmy(step);
+        Duck.FileLog($"{playerAlias} sync {step} => {(success ? "SUCCESS" : "TIMEOUT/FAILED")}", LogPrefix);
+        if (!success)
             return false;
 
         Core.Logger($"{LogPrefix} {playerAlias} continued from {step}.");
         return true;
-    }
-
-    private void StopArmy()
-    {
-        if (Duck.IsArmyPlayer(1))
-        {
-            Bot.Sleep(2000);
-
-            if (Bot.ShouldExit)
-                return;
-
-            if (Duck.StopArmySync("COMPLETE"))
-                Core.Logger($"{LogPrefix} playerOne published COMPLETE.");
-            else
-                Core.Logger($"{LogPrefix} playerOne could not publish COMPLETE.");
-
-            return;
-        }
-
-        if (Duck.SyncArmy("STOP_CHECK"))
-            Core.Logger($"{LogPrefix} {playerAlias} unexpectedly passed STOP_CHECK.");
-        else
-            Core.Logger($"{LogPrefix} {playerAlias} detected COMPLETE.");
     }
 }
