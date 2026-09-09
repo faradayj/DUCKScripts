@@ -27,9 +27,6 @@
    - Non-blocking interrupts (`RequestImmediateTaunt`, `RequestTaunt`) preventing skill starvation.
 6. **"No Player Left Behind" Consensus Protocol**:
    - If any player dies just before a boss is defeated and misses drop/quest credit during respawn, the entire army stays and retries together.
-7. **Built-in Agent Skills (`.agents/skills/`)**:
-   - `duck-ultra-scripting`: Authoring, auditing, and debugging ultra boss scripts.
-   - `duck-custom-skillset`: Assembling custom class presets and Forge enhancement profiles.
 
 ---
 
@@ -49,13 +46,7 @@ DUCKScripts/
 │   ├── VoidBosses/             # Void Dailies (Xyfrag, Nightbane, Flibbi, Nerfkitten)
 │   └── Extras/                 # Repeatable army farming (ArmyPrismatasGoldFarmDUCK)
 ├── Tools/                      # Army utility scripts (TurretDUCK, Butlerv4DUCK)
-├── BISEnhancements.cs          # Dynamic Best-in-Slot Forge enhancement manager
-├── bis_enhancements.json       # Database of class Forge enhancements
-├── EditSkuaConfig.py           # Script options management utility
-└── .agents/                    # Specialized AI agent skills
-    └── skills/
-        ├── duck-ultra-scripting/ # Script authoring rules, recipes, and checklists
-        └── duck-custom-skillset/ # Class preset & Forge enhancement assembler
+└── EditSkuaConfig.py           # Script options management utility
 ```
 
 ---

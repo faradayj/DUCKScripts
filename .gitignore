@@ -2,15 +2,22 @@
 # DUCKScripts Git Ignore Rules
 # ==============================================================================
 
-# Local Roslyn Compilation Tester (Preserved locally for verify_skillset.ps1)
+# Local Roslyn Compilation Tester (Preserved locally for compilation checks)
 SkuaCompileTester/
 
-# Internal Research, Deep Dives, & Architecture Manuals (Preserved locally)
+# Internal Research, Deep Dives, & Architecture Manuals
 how/
 
 # Legacy v4 Framework & Scripts
 Ultrasv4/
 Army/
+
+# Legacy Enhancement Scripts
+BISEnhancements.cs
+bis_enhancements.json
+
+# AI Assistant & Agent Tooling
+.agents/
 
 # Runtime Logs
 Logs/
