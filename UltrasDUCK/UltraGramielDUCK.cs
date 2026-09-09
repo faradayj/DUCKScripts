@@ -284,6 +284,7 @@ public class UltraGramielDUCK
         )
         {
             Duck.JoinRoom(MapName, privateRoomNumber, SafeCell, SafePad);
+            Duck.FileLog($"{playerAlias} joined {MapName}-{privateRoomNumber} for attempt {fightAttempt}.", LogPrefix);
 
             if (
                 !PrepareSafeRoom(preset)
@@ -301,6 +302,7 @@ public class UltraGramielDUCK
                 return false;
 
             Core.Jump(FightCell, FightPad);
+            Duck.FileLog($"{playerAlias} jumped to {FightCell} for attempt {fightAttempt}.", LogPrefix);
 
             PhaseResult result = FightPhaseOne(preset, fightAttempt);
             if (result == PhaseResult.Completed)
@@ -312,11 +314,16 @@ public class UltraGramielDUCK
                 );
                 if (result == PhaseResult.Completed)
                 {
+                    Core.Jump(SafeCell, SafePad);
                     bool CreditCheck() =>
                         Bot.Quests.CanComplete(UltraQuestId) || Bot.Quests.IsDailyComplete(UltraQuestId);
 
                     if (Duck.VerifyArmyKillCredit(fightAttempt, CreditCheck, 4, LogPrefix))
+                    {
+                        Duck.FileLog($"{playerAlias} confirmed Ultra Gramiel defeated on attempt {fightAttempt}.", LogPrefix);
+                        Core.Logger($"{LogPrefix} {playerAlias} confirmed Ultra Gramiel defeated.");
                         return true;
+                    }
 
                     Core.Logger($"{LogPrefix} One or more players missed kill credit on attempt {fightAttempt}. Retrying fight with entire army...");
                     result = PhaseResult.Reset;
@@ -348,22 +355,20 @@ public class UltraGramielDUCK
         if (Bot.ShouldExit)
             return false;
 
-        if (true)
-            Duck.PrepareEnhancements(
-                preset.BaseEnhancement,
-                preset.CapeEnhancement,
-                preset.HelmEnhancement,
-                preset.WeaponEnhancement,
-                warnForElysiumUnlock: IsShamanPlayer(),
-                weaponFallbacks: preset.WeaponEnhancementFallbacks
-            );
+        Duck.PrepareEnhancements(
+            preset.BaseEnhancement,
+            preset.CapeEnhancement,
+            preset.HelmEnhancement,
+            preset.WeaponEnhancement,
+            warnForElysiumUnlock: isShaman,
+            weaponFallbacks: preset.WeaponEnhancementFallbacks
+        );
 
-        if (true)
-            Duck.PreparePotions(
-                preset.Tonic,
-                preset.Elixir,
-                preset.CombatPotion
-            );
+        Duck.PreparePotions(
+            preset.Tonic,
+            preset.Elixir,
+            preset.CombatPotion
+        );
 
         Duck.PrepareScrolls(EnrageScroll);
 
@@ -377,12 +382,11 @@ public class UltraGramielDUCK
 
     private bool PrepareSafeRoom(ClassPreset preset)
     {
-        if (true)
-            Duck.UsePotions(
-                preset.Tonic,
-                preset.Elixir,
-                preset.CombatPotion
-            );
+        Duck.UsePotions(
+            preset.Tonic,
+            preset.Elixir,
+            preset.CombatPotion
+        );
 
         Duck.EquipScroll(EnrageScroll);
         Duck.GenericPrebuff();
@@ -1192,6 +1196,7 @@ public class UltraGramielDUCK
 
     private bool HandleFightReset(int fightAttempt)
     {
+        Duck.FileLog($"{playerAlias} executing fight reset for attempt {fightAttempt}.", LogPrefix);
         Duck.StopPacketDetector();
         Duck.StopSkillEngine();
         Bot.Combat.CancelTarget();
@@ -1224,20 +1229,7 @@ public class UltraGramielDUCK
 
     private void StopArmyAfterFailedAttempts()
     {
-        if (masterMode)
-        {
-            if (Duck.IsArmyPlayer(1))
-                Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
-            else
-                Duck.SyncArmy("STOP_CHECK");
-
-            Core.Logger(
-                $"{LogPrefix} fight failed after {MaxFightAttempts} attempts.",
-                "RunFightAttempts"
-            );
-            return;
-        }
-
+        Duck.FileLog($"{playerAlias} failed after {MaxFightAttempts} fight attempts.", LogPrefix);
         if (Duck.IsArmyPlayer(1))
             Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
         else
@@ -1246,8 +1238,8 @@ public class UltraGramielDUCK
         Core.Logger(
             $"{LogPrefix} fight failed after {MaxFightAttempts} attempts.",
             "RunFightAttempts",
-            messageBox: true,
-            stopBot: true
+            messageBox: !masterMode,
+            stopBot: !masterMode
         );
     }
 
@@ -1262,8 +1254,6 @@ public class UltraGramielDUCK
 
     private void RequestGramielTaunt(int mapId) =>
         Duck.RequestAbsolutePriorityTaunt(mapId);
-
-    private bool IsShamanPlayer() => isShaman;
 
     private bool Sync(string step)
     {
