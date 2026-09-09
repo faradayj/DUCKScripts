@@ -1,7 +1,7 @@
-﻿/*
-name: Ultra Tyndarius LW
+/*
+name: Ultra Tyndarius DUCK
 description: Four-player CoreDUCK Army script for Ultra Tyndarius.
-tags: ultra, tyndarius, army, coreduck
+tags: ultra, tyndarius, army, coreduck, daily
 */
 
 //cs_include Scripts/CoreBots.cs
@@ -16,16 +16,6 @@ using Skua.Core.Options;
 
 public class UltraTyndariusDUCK
 {
-    public enum ArmyComposition
-    {
-        Default,
-        Stable,
-        Reliable,
-        Fast,
-        Test,
-        Test2,
-    }
-
     private enum FightResult
     {
         Continue,
@@ -66,9 +56,9 @@ public class UltraTyndariusDUCK
     private string playerAlias = string.Empty;
     private bool isTaunter;
     private int privateRoomNumber = DefaultPrivateRoomNumber;
-    private ArmyComposition armyComposition;
     private bool masterMode;
     private UltraRunResult runResult = UltraRunResult.Failed;
+    private DuckAssignmentResult? currentAssignResult;
 
     public string OptionsStorage = "UltraTyndariusDUCK";
     public bool DontPreconfigure = true;
@@ -86,7 +76,6 @@ public class UltraTyndariusDUCK
     {
         Bot.Skills.Stop();
         Bot.Options.InfiniteRange = true;
-        // Bot.Config?.Configure();
 
         try
         {
@@ -143,7 +132,8 @@ public class UltraTyndariusDUCK
 
         ClassPreset preset = assignResult.Preset;
         playerAlias = $"Player {assignResult.PlayerNumber} ({preset.ClassName})";
-        isTaunter = Duck.IsArmyPlayer(1) || Duck.IsArmyPlayer(2);
+        isTaunter = true;
+        preset.CombatPotion = null;
 
         if (
             !Duck.ValidateUltraAccess(
@@ -168,9 +158,12 @@ public class UltraTyndariusDUCK
         if (!RunFightAttempts(preset) || !Sync("BOSS_DEFEATED"))
             return;
 
+        Core.Jump(SafeCell, SafePad);
+        Duck.FileLog($"{playerAlias} completing Ultra Tyndarius quest ({UltraQuestId}).", LogPrefix);
         Duck.CompleteUltraQuest(UltraQuestId);
+        Duck.FileLog($"{playerAlias} completed Ultra Tyndarius quest ({UltraQuestId}).", LogPrefix);
 
-                if (Bot.ShouldExit || !Sync("FINISH"))
+        if (Bot.ShouldExit || !Sync("FINISH"))
             return;
 
         runResult = UltraRunResult.Completed;
@@ -191,38 +184,53 @@ public class UltraTyndariusDUCK
         )
         {
             Duck.JoinRoom(MapName, privateRoomNumber, SafeCell, SafePad);
+            Duck.FileLog($"{playerAlias} joined {MapName}-{privateRoomNumber} for attempt {fightAttempt}.", LogPrefix);
 
             if (!PrepareSafeRoom(preset) || !Sync("FIGHT_READY"))
                 return false;
 
-            bool isAP = string.Equals(preset.ClassName, "ArchPaladin", StringComparison.OrdinalIgnoreCase);
-            if (isAP)
+            FightResult result;
+            try
             {
-                if (
-                    !PrepareRighteousSeal()
-                    || !SendRighteousSealSignal(fightAttempt)
-                )
-                    return false;
+                bool isAP = string.Equals(preset.ClassName, "ArchPaladin", StringComparison.OrdinalIgnoreCase);
+                if (isAP)
+                {
+                    if (
+                        !PrepareRighteousSeal()
+                        || !SendRighteousSealSignal(fightAttempt)
+                    )
+                        return false;
+                }
+                else
+                {
+                    if (
+                        !WaitForRighteousSealSignal(fightAttempt)
+                        || !MoveToBossRoom(useDirectFlash: true)
+                    )
+                        return false;
+                }
+
+                Duck.FileLog($"{playerAlias} jumped to {BossCell} for attempt {fightAttempt}.", LogPrefix);
+                result = Fight(preset, fightAttempt);
             }
-            else
+            finally
             {
-                if (
-                    !WaitForRighteousSealSignal(fightAttempt)
-                    || !MoveToBossRoom(useDirectFlash: true)
-                )
-                    return false;
+                Duck.StopSkillEngine();
             }
 
-            FightResult result = Fight(preset, fightAttempt);
             if (result == FightResult.Defeated)
             {
                 bool CreditCheck() =>
                     Bot.Quests.CanComplete(UltraQuestId) || Bot.Quests.IsDailyComplete(UltraQuestId);
 
                 if (Duck.VerifyArmyKillCredit(fightAttempt, CreditCheck, 4, LogPrefix))
+                {
+                    Duck.FileLog($"{playerAlias} confirmed Ultra Tyndarius defeated on attempt {fightAttempt}.", LogPrefix);
                     return true;
+                }
 
                 Core.Logger($"{LogPrefix} One or more players missed kill credit on attempt {fightAttempt}. Retrying fight with entire army...");
+                Duck.FileLog($"{playerAlias} missed kill credit on attempt {fightAttempt}. Resetting fight...", LogPrefix);
                 if (!HandleFightReset(fightAttempt))
                     return false;
 
@@ -243,13 +251,6 @@ public class UltraTyndariusDUCK
         return false;
     }
 
-    private bool ValidateOptions()
-    {
-        armyComposition = ArmyComposition.Default;
-if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
-        return Duck.ValidatePrivateRoomNumber(privateRoomNumber);
-    }
-
     private bool Prepare(ClassPreset preset)
     {
         Core.Logger($"{LogPrefix} {playerAlias} starting setup.");
@@ -258,17 +259,15 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
         if (Bot.ShouldExit)
             return false;
 
-        
-            Duck.PrepareEnhancements(
-                preset.BaseEnhancement,
-                preset.CapeEnhancement,
-                preset.HelmEnhancement,
-                preset.WeaponEnhancement,
-                weaponFallbacks: preset.WeaponEnhancementFallbacks
-            );
+        Duck.PrepareEnhancements(
+            preset.BaseEnhancement,
+            preset.CapeEnhancement,
+            preset.HelmEnhancement,
+            preset.WeaponEnhancement,
+            weaponFallbacks: preset.WeaponEnhancementFallbacks
+        );
 
-        
-            Duck.PreparePotions(preset.Tonic, preset.Elixir, preset.CombatPotion);
+        Duck.PreparePotions(preset.Tonic, preset.Elixir, preset.CombatPotion);
 
         if (isTaunter)
             Duck.PrepareScrolls(EnrageScroll);
@@ -283,8 +282,7 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
 
     private bool PrepareSafeRoom(ClassPreset preset)
     {
-        
-            Duck.UsePotions(preset.Tonic, preset.Elixir, preset.CombatPotion);
+        Duck.UsePotions(preset.Tonic, preset.Elixir, preset.CombatPotion);
 
         if (isTaunter)
             Duck.EquipScroll(EnrageScroll);
@@ -295,13 +293,15 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
 
     private bool PrepareRighteousSeal()
     {
-        Core.Logger($"{LogPrefix} playerThree starting Righteous Seal preparation.");
+        Duck.FileLog($"{playerAlias} starting Righteous Seal preparation.", LogPrefix);
+        Core.Logger($"{LogPrefix} {playerAlias} starting Righteous Seal preparation.");
 
         while (!Bot.ShouldExit)
         {
             if (!Bot.Player.Alive)
             {
-                Core.Logger($"{LogPrefix} playerThree died during Righteous Seal preparation.");
+                Duck.FileLog($"{playerAlias} died during Righteous Seal preparation.", LogPrefix);
+                Core.Logger($"{LogPrefix} {playerAlias} died during Righteous Seal preparation.");
 
                 while (!Bot.ShouldExit && !Bot.Player.Alive)
                     Bot.Sleep(RespawnPollDelay);
@@ -309,7 +309,8 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
                 if (Bot.ShouldExit)
                     return false;
 
-                Core.Logger($"{LogPrefix} playerThree respawned and is retrying preparation.");
+                Duck.FileLog($"{playerAlias} respawned and retrying Righteous Seal preparation.", LogPrefix);
+                Core.Logger($"{LogPrefix} {playerAlias} respawned and is retrying preparation.");
             }
 
             if (!MoveToBossRoom(useDirectFlash: true))
@@ -320,9 +321,10 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
 
             Duck.MaintainTarget(MainBossMapId);
 
-            if (Bot.Target.GetAura(RighteousSealAura) != null)
+            if (Bot.Target?.GetAura(RighteousSealAura) != null)
             {
-                Core.Logger($"{LogPrefix} playerThree confirmed Righteous Seal.");
+                Duck.FileLog($"{playerAlias} confirmed Righteous Seal active.", LogPrefix);
+                Core.Logger($"{LogPrefix} {playerAlias} confirmed Righteous Seal.");
                 return true;
             }
 
@@ -341,13 +343,15 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
         if (!Duck.SendArmySignal(signal))
             return false;
 
-        Core.Logger($"{LogPrefix} playerThree sent {signal}.");
+        Duck.FileLog($"{playerAlias} sent {signal}.", LogPrefix);
+        Core.Logger($"{LogPrefix} {playerAlias} sent {signal}.");
         return true;
     }
 
     private bool WaitForRighteousSealSignal(int fightAttempt)
     {
         string signal = GetRighteousSealSignal(fightAttempt);
+        Duck.FileLog($"{playerAlias} waiting for {signal}...", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} waiting for {signal}.");
 
         while (!Bot.ShouldExit)
@@ -356,6 +360,7 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
             {
                 if (Duck.HasArmySignal(signal, p))
                 {
+                    Duck.FileLog($"{playerAlias} received {signal} from Player {p}.", LogPrefix);
                     Core.Logger($"{LogPrefix} {playerAlias} received {signal} from Player {p}.");
                     return true;
                 }
@@ -372,17 +377,14 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
 
     private bool MoveToBossRoom(bool useDirectFlash = false)
     {
-        if (Bot.Player.Cell == BossCell && Bot.Player.Pad == BossPad)
+        if (IsInBossRoom())
             return true;
 
         if (useDirectFlash)
         {
             Bot.Flash.Call("jumpCorrectRoom", BossCell, BossPad, false, false);
 
-            while (
-                !Bot.ShouldExit
-                && (Bot.Player.Cell != BossCell || Bot.Player.Pad != BossPad)
-            )
+            while (!Bot.ShouldExit && !IsInBossRoom())
                 Bot.Sleep(FightPollDelay);
         }
         else
@@ -390,12 +392,8 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
             Core.Jump(BossCell, BossPad);
         }
 
-        return !Bot.ShouldExit
-            && Bot.Player.Cell == BossCell
-            && Bot.Player.Pad == BossPad;
+        return !Bot.ShouldExit && IsInBossRoom();
     }
-
-    private DuckAssignmentResult? currentAssignResult;
 
     private FightResult Fight(ClassPreset preset, int fightAttempt)
     {
@@ -448,7 +446,9 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
     )
     {
         StartSkillEngine(preset);
-        Core.Logger($"{LogPrefix} {playerAlias} started fighting.");
+        string addName = tauntMapId == FirstAddMapId ? "Left Orb" : "Right Orb";
+        Duck.FileLog($"{playerAlias} started fighting and assigned to taunt {addName} (MapId {tauntMapId}).", LogPrefix);
+        Core.Logger($"{LogPrefix} {playerAlias} started fighting (taunting {addName}).");
 
         while (!Bot.ShouldExit)
         {
@@ -462,72 +462,6 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
             if (!immediateTauntAccepted)
                 Duck.MaintainTarget(GetPriorityTarget());
 
-            Bot.Sleep(FightPollDelay);
-        }
-
-        return FinishFight(FightResult.Stopped);
-    }
-
-    private FightResult FightRightAddThenBoss(
-        ClassPreset preset,
-        int fightAttempt,
-        bool tauntLeftAdd
-    )
-    {
-        StartSkillEngine(preset);
-        Core.Logger($"{LogPrefix} {playerAlias} started fighting.");
-        bool bossLocked = false;
-
-        while (!Bot.ShouldExit)
-        {
-            FightResult result = RecoverFromDeath(fightAttempt, out _);
-            if (result != FightResult.Continue)
-                return FinishFight(result);
-
-            bool immediateTauntAccepted = tauntLeftAdd
-                && Duck.IsMonsterAlive(FirstAddMapId)
-                && Duck.RequestImmediateTaunt(FirstAddMapId);
-
-            if (!immediateTauntAccepted)
-            {
-                int targetMapId = bossLocked
-                    ? MainBossMapId
-                    : Duck.IsMonsterAlive(SecondAddMapId)
-                        ? SecondAddMapId
-                        : MainBossMapId;
-
-                if (targetMapId == MainBossMapId)
-                    bossLocked = true;
-
-                Duck.MaintainTarget(targetMapId);
-            }
-
-            Bot.Sleep(FightPollDelay);
-        }
-
-        return FinishFight(FightResult.Stopped);
-    }
-
-    private FightResult FightDamageDealer(ClassPreset preset, int fightAttempt)
-    {
-        StartSkillEngine(preset);
-        Core.Logger($"{LogPrefix} {playerAlias} started fighting.");
-        bool bossLocked = false;
-
-        while (!Bot.ShouldExit)
-        {
-            FightResult result = RecoverFromDeath(fightAttempt, out _);
-            if (result != FightResult.Continue)
-                return FinishFight(result);
-
-            int targetMapId = bossLocked
-                ? MainBossMapId
-                : GetPriorityTarget();
-
-            if (targetMapId == MainBossMapId)
-                bossLocked = true;
-
-            Duck.MaintainTarget(targetMapId);
             Bot.Sleep(FightPollDelay);
         }
 
@@ -552,12 +486,13 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
         string partnerName = (
             Duck.GetArmyPlayerName(partnerPlayerNumber)
         ).Trim();
-        string partnerAlias = isArchPaladin ? "playerFour" : "playerThree";
+        string partnerAlias = $"Player {partnerPlayerNumber}";
 
         if (isArchPaladin)
         {
             RequestBossTaunt(immediate: false);
-            Core.Logger($"{LogPrefix} playerThree requested the first boss taunt.");
+            Duck.FileLog($"{playerAlias} requested the opening boss taunt.", LogPrefix);
+            Core.Logger($"{LogPrefix} {playerAlias} requested the first boss taunt.");
         }
 
         while (!Bot.ShouldExit)
@@ -578,6 +513,7 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
                 waitingForOwnFocus = true;
                 focusBaseline = GetFocusExpiry();
                 RequestBossTaunt(immediate: false);
+                Duck.FileLog($"{playerAlias} owns the next boss taunt after returning from respawn.", LogPrefix);
                 Core.Logger($"{LogPrefix} {playerAlias} owns the next boss taunt after returning.");
             }
 
@@ -603,6 +539,7 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
                 partnerDeathObserved = true;
                 ownsFocusCycle = false;
                 waitingForOwnFocus = false;
+                Duck.FileLog($"{playerAlias} detected its taunt partner ({partnerAlias}) died.", LogPrefix);
                 Core.Logger($"{LogPrefix} {playerAlias} detected its taunt partner died.");
             }
 
@@ -617,6 +554,7 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
                     );
                     ownsFocusCycle = false;
                     waitingForOwnFocus = false;
+                    Duck.FileLog($"{playerAlias} restored alternating boss taunts with {partnerAlias}.", LogPrefix);
                     Core.Logger($"{LogPrefix} {playerAlias} restored alternating boss taunts.");
                 }
                 else
@@ -627,7 +565,7 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
                 }
             }
 
-            var focus = Bot.Target.GetAura(FocusAura);
+            var focus = Bot.Target?.GetAura(FocusAura);
             if (
                 waitingForOwnFocus
                 && focus != null
@@ -637,6 +575,7 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
                 focusBaseline = focus.ExpiresAt;
                 waitingForOwnFocus = false;
                 ownsFocusCycle = true;
+                Duck.FileLog($"{playerAlias} confirmed its Focus and owns the taunt cycle.", LogPrefix);
                 Core.Logger($"{LogPrefix} {playerAlias} confirmed its Focus and owns the taunt cycle.");
             }
 
@@ -668,6 +607,7 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
                 );
                 if (Duck.SendArmySignal(signal))
                 {
+                    Duck.FileLog($"{playerAlias} sent {signal} to {partnerAlias}.", LogPrefix);
                     Core.Logger($"{LogPrefix} {playerAlias} sent {signal} to {partnerAlias}.");
                     nextSignalNumber++;
                     ownsFocusCycle = false;
@@ -685,6 +625,7 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
                     focusBaseline = GetFocusExpiry();
                     waitingForOwnFocus = true;
                     RequestBossTaunt(immediate: false);
+                    Duck.FileLog($"{playerAlias} received {signal} and requested its scheduled boss taunt.", LogPrefix);
                     Core.Logger($"{LogPrefix} {playerAlias} received {signal} and requested its scheduled boss taunt.");
                 }
             }
@@ -697,9 +638,7 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
 
     private void RequestBossTaunt(bool immediate)
     {
-        if (armyComposition == ArmyComposition.Test2)
-            Duck.RequestAbsolutePriorityTaunt(MainBossMapId);
-        else if (immediate)
+        if (immediate)
             Duck.RequestImmediateTaunt(MainBossMapId);
         else
             Duck.RequestTaunt(MainBossMapId);
@@ -730,10 +669,7 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
             isTaunter,
             LogPrefix,
             preset.SkillMode,
-            maintainedPotion: !isTaunter
-                
-                    ? preset.CombatPotion
-                    : null
+            maintainedPotion: null
         );
     }
 
@@ -768,6 +704,7 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
         if (Bot.Player.Alive)
             return GetFightResult(fightAttempt);
 
+        Duck.FileLog($"{playerAlias} died during fight attempt {fightAttempt}.", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} died.");
 
         while (!Bot.ShouldExit && !Bot.Player.Alive)
@@ -785,6 +722,7 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
         if (result != FightResult.Continue)
             return result;
 
+        Duck.FileLog($"{playerAlias} respawned.", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} respawned.");
 
         if (!MoveToBossRoom())
@@ -802,6 +740,9 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
     {
         dead = false;
         inBossRoom = false;
+
+        if (string.IsNullOrWhiteSpace(partnerName))
+            return false;
 
         var players = Bot.Map.Players;
         if (players == null)
@@ -822,7 +763,7 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
     }
 
     private DateTimeOffset GetFocusExpiry() =>
-        Bot.Target.GetAura(FocusAura)?.ExpiresAt ?? DateTimeOffset.MinValue;
+        Bot.Target?.GetAura(FocusAura)?.ExpiresAt ?? DateTimeOffset.MinValue;
 
     private FightResult FinishFight(FightResult result)
     {
@@ -832,12 +773,14 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
             return result;
 
         Core.Jump(SafeCell, SafePad);
+        Duck.FileLog($"{playerAlias} confirmed Ultra Tyndarius defeated.", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} confirmed Ultra Tyndarius defeated.");
         return FightResult.Defeated;
     }
 
     private bool HandleFightReset(int fightAttempt)
     {
+        Duck.FileLog($"{playerAlias} executing fight reset for attempt {fightAttempt}.", LogPrefix);
         Duck.StopSkillEngine();
         Bot.Combat.CancelTarget();
 
@@ -858,8 +801,8 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
             Core.Logger(
                 $"{LogPrefix} {playerAlias} could not reach the safe room after reset.",
                 "HandleFightReset",
-                messageBox: true,
-                stopBot: true
+                messageBox: !masterMode,
+                stopBot: !masterMode
             );
             return false;
         }
@@ -869,20 +812,7 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
 
     private void StopArmyAfterFailedAttempts()
     {
-        if (masterMode)
-        {
-            if (Duck.IsArmyPlayer(1))
-                Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
-            else
-                Duck.SyncArmy("STOP_CHECK");
-
-            Core.Logger(
-                $"{LogPrefix} failed after {MaxFightAttempts} fight attempts.",
-                "RunFightAttempts"
-            );
-            return;
-        }
-
+        Duck.FileLog($"{playerAlias} failed after {MaxFightAttempts} fight attempts.", LogPrefix);
         if (Duck.IsArmyPlayer(1))
             Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
         else
@@ -891,86 +821,28 @@ if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
         Core.Logger(
             $"{LogPrefix} failed after {MaxFightAttempts} fight attempts.",
             "RunFightAttempts",
-            messageBox: true,
-            stopBot: true
+            messageBox: !masterMode,
+            stopBot: !masterMode
         );
     }
 
     private bool IsInSafeRoom() =>
-        Bot.Player.Cell == SafeCell && Bot.Player.Pad == SafePad;
+        string.Equals(Bot.Player.Cell, SafeCell, StringComparison.OrdinalIgnoreCase);
 
-    private ClassPreset GetClassPreset()
-    {
-        if (Duck.IsArmyPlayer(1))
-            return armyComposition switch
-            {
-                ArmyComposition.Stable => Duck.KingsEcho(),
-                ArmyComposition.Reliable => Duck.VerusDoomKnight(),
-                ArmyComposition.Fast => Duck.ArcanaInvoker(),
-                _ => Duck.LegionRevenant(),
-            };
-
-        if (Duck.IsArmyPlayer(2))
-            return Duck.StoneCrusher();
-
-        if (Duck.IsArmyPlayer(3))
-            return Duck.ArchPaladin();
-
-        return Duck.LordOfOrder();
-    }
-
-    private bool UsesDefaultFightRoles() =>
-        armyComposition == ArmyComposition.Default
-        || armyComposition == ArmyComposition.Reliable
-        || armyComposition == ArmyComposition.Test2;
-
-    private bool IsTaunterRole() => true;
-
-    private string GetPlayerAlias()
-    {
-        if (Duck.IsArmyPlayer(1))
-            return "playerOne";
-
-        if (Duck.IsArmyPlayer(2))
-            return "playerTwo";
-
-        if (Duck.IsArmyPlayer(3))
-            return "playerThree";
-
-        return "playerFour";
-    }
+    private bool IsInBossRoom() =>
+        string.Equals(Bot.Player.Cell, BossCell, StringComparison.OrdinalIgnoreCase);
 
     private bool Sync(string step)
     {
+        Duck.FileLog($"{playerAlias} syncing on {step}...", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} entering {step}.");
 
-        if (!Duck.SyncArmy(step))
+        bool success = Duck.SyncArmy(step);
+        Duck.FileLog($"{playerAlias} sync {step} => {(success ? "SUCCESS" : "TIMEOUT/FAILED")}", LogPrefix);
+        if (!success)
             return false;
 
         Core.Logger($"{LogPrefix} {playerAlias} continued from {step}.");
         return true;
-    }
-
-    private void StopArmy()
-    {
-        if (Duck.IsArmyPlayer(1))
-        {
-            Bot.Sleep(2000);
-
-            if (Bot.ShouldExit)
-                return;
-
-            if (Duck.StopArmySync("COMPLETE"))
-                Core.Logger($"{LogPrefix} playerOne published COMPLETE.");
-            else
-                Core.Logger($"{LogPrefix} playerOne could not publish COMPLETE.");
-
-            return;
-        }
-
-        if (Duck.SyncArmy("STOP_CHECK"))
-            Core.Logger($"{LogPrefix} {playerAlias} unexpectedly passed STOP_CHECK.");
-        else
-            Core.Logger($"{LogPrefix} {playerAlias} detected COMPLETE.");
     }
 }
