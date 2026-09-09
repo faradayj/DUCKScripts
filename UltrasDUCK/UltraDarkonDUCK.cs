@@ -1,5 +1,5 @@
-﻿/*
-name: Ultra Darkon LW
+/*
+name: Ultra Darkon DUCK
 description: Four-player CoreDUCK Army script for Ultra Darkon.
 tags: ultra, darkon, weekly, army, coreduck
 */
@@ -16,16 +16,6 @@ using Skua.Core.Options;
 
 public class UltraDarkonDUCK
 {
-    public enum ArmyComposition
-    {
-        Default,
-        Stable,
-        Optimized,
-        Test,
-        Test2,
-        Pay2Win,
-    }
-
     private enum FightResult
     {
         Defeated,
@@ -62,8 +52,6 @@ public class UltraDarkonDUCK
     private const int TauntDelay = 1250;
     private const int LooExtraHealWindowStartDelay = 6000;
     private const int LooExtraHealWindowDuration = 500;
-    private const int ApExtraHealWindowStartDelay = 5000;
-    private const int ApExtraHealWindowDuration = 1500;
     private const int RequiredHealDelay = 250;
     private const int RighteousSealSkillFourWindow = 1500;
     private const int FightPollDelay = 100;
@@ -72,7 +60,6 @@ public class UltraDarkonDUCK
     private const int DefaultPrivateRoomNumber = 1245;
 
     private string playerAlias = string.Empty;
-    private ArmyComposition armyComposition;
     private bool masterMode;
     private UltraRunResult runResult = UltraRunResult.Failed;
     private bool isTaunter;
@@ -197,7 +184,7 @@ public class UltraDarkonDUCK
         Core.Jump(SafeCell, SafePad);
         Duck.CompleteUltraQuest(UltraQuestId);
 
-                if (Bot.ShouldExit || !Sync("FINISH"))
+        if (Bot.ShouldExit || !Sync("FINISH"))
             return;
 
         runResult = UltraRunResult.Completed;
@@ -240,6 +227,7 @@ public class UltraDarkonDUCK
         )
         {
             Duck.JoinRoom(MapName, privateRoomNumber, SafeCell, SafePad);
+            Duck.FileLog($"{playerAlias} joined {MapName}-{privateRoomNumber} for attempt {fightAttempt}.", LogPrefix);
 
             if (!PrepareSafeRoom(preset) || !StartDarkonPacketDetector())
                 return false;
@@ -247,21 +235,26 @@ public class UltraDarkonDUCK
             if (!Sync("FIGHT_READY"))
                 return false;
 
+            // Pre-combat barrier principle: start skill engine, jump, and fight immediately without post-jump sync
+            StartSkillEngine(preset);
             Core.Jump(BossCell, BossPad);
+            Duck.FileLog($"{playerAlias} jumped to {BossCell} for attempt {fightAttempt}.", LogPrefix);
 
-            if (Bot.ShouldExit || !Sync("START_FIGHT"))
-                return false;
-
-            FightResult result = Fight(preset, fightAttempt);
+            FightResult result = Fight(fightAttempt);
             Duck.StopPacketDetector();
 
             if (result == FightResult.Defeated)
             {
+                Core.Jump(SafeCell, SafePad);
                 bool CreditCheck() =>
                     Bot.Quests.CanComplete(UltraQuestId) || Bot.Quests.IsDailyComplete(UltraQuestId);
 
                 if (Duck.VerifyArmyKillCredit(fightAttempt, CreditCheck, 4, LogPrefix))
+                {
+                    Duck.FileLog($"{playerAlias} confirmed Ultra Darkon defeated on attempt {fightAttempt}.", LogPrefix);
+                    Core.Logger($"{LogPrefix} {playerAlias} confirmed Ultra Darkon defeated.");
                     return true;
+                }
 
                 Core.Logger($"{LogPrefix} One or more players missed kill credit on attempt {fightAttempt}. Retrying fight with entire army...");
                 if (!HandleFightReset(fightAttempt))
@@ -282,13 +275,6 @@ public class UltraDarkonDUCK
         }
 
         return false;
-    }
-
-    private bool ValidateOptions()
-    {
-        armyComposition = ArmyComposition.Default;
-        if (!masterMode) privateRoomNumber = DefaultPrivateRoomNumber;
-        return Duck.ValidatePrivateRoomNumber(privateRoomNumber);
     }
 
     private bool Prepare(ClassPreset preset)
@@ -345,7 +331,7 @@ public class UltraDarkonDUCK
             Core.Logger(
                 "Vainglory is enhanced on the cape. Ultra Darkon will fail.",
                 "Prepare",
-                messageBox: true
+                messageBox: !masterMode
             );
             return;
         }
@@ -384,13 +370,13 @@ public class UltraDarkonDUCK
         Core.Logger(
             "The Darkon packet detector could not be started.",
             "RunFightAttempts",
-            messageBox: true,
-            stopBot: true
+            messageBox: !masterMode,
+            stopBot: !masterMode
         );
         return false;
     }
 
-    private FightResult Fight(ClassPreset preset, int fightAttempt)
+    private void StartSkillEngine(ClassPreset preset)
     {
         Duck.StartSkillEngine(
             preset.Skills,
@@ -400,197 +386,159 @@ public class UltraDarkonDUCK
             preset.SkillMode,
             useSurvivalSkill: true,
             maintainedPotion: !isTaunter
-                && true
-                    ? preset.CombatPotion
-                    : null,
+                ? preset.CombatPotion
+                : null,
             kingsEchoManaThreshold: 12
         );
+        Duck.FileLog($"{playerAlias} started skill engine.", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} started fighting.");
+    }
 
-        bool bossObserved = Duck.IsMonsterAlive(DarkonMapId);
-        bool tauntScheduled = false;
-        bool looHoldLogged = false;
-        bool looSkillFourRequested = false;
-        bool looSkillFourReleased = false;
-        int nextDetection = 1;
-        int nextAttack2Signal = 1;
-        int scheduledTauntCycle = 0;
-        int looExtraHealCycle = 0;
-        int apExtraHealCycle = 0;
-        int delayedHealCycle = 0;
-        string delayedHealAttack = string.Empty;
-        DateTimeOffset tauntAt = DateTimeOffset.MinValue;
-        DateTimeOffset looExtraHealWindowStart = DateTimeOffset.MinValue;
-        DateTimeOffset apExtraHealWindowStart = DateTimeOffset.MinValue;
-        DateTimeOffset delayedHealAt = DateTimeOffset.MinValue;
-        bool apPhaseThreeConfigured = false;
-        bool apSkillThreeBlocked = false;
-        bool handlesAttack2Signals = false;
-
-        while (!Bot.ShouldExit)
+    private FightResult Fight(int fightAttempt)
+    {
+        try
         {
-            if (Duck.IsMonsterAlive(DarkonMapId))
-                bossObserved = true;
-            else if (bossObserved)
-                break;
+            bool bossObserved = Duck.IsMonsterAlive(DarkonMapId);
+            bool tauntScheduled = false;
+            bool looHoldLogged = false;
+            bool looSkillFourRequested = false;
+            bool looSkillFourReleased = false;
+            int nextDetection = 1;
+            int scheduledTauntCycle = 0;
+            int looExtraHealCycle = 0;
+            int delayedHealCycle = 0;
+            string delayedHealAttack = string.Empty;
+            DateTimeOffset tauntAt = DateTimeOffset.MinValue;
+            DateTimeOffset looExtraHealWindowStart = DateTimeOffset.MinValue;
+            DateTimeOffset delayedHealAt = DateTimeOffset.MinValue;
+            bool apPhaseThreeConfigured = false;
+            bool apSkillThreeBlocked = false;
 
-            if (Duck.ShouldResetFight(fightAttempt))
+            while (!Bot.ShouldExit)
             {
-                Duck.StopSkillEngine();
-                return FightResult.Reset;
-            }
-
-            if (!Bot.Player.Alive)
-            {
-                Core.Logger($"{LogPrefix} {playerAlias} died.");
-                tauntScheduled = false;
-                looSkillFourRequested = false;
-                looExtraHealCycle = 0;
-                looExtraHealWindowStart = DateTimeOffset.MinValue;
-                apExtraHealCycle = 0;
-                apExtraHealWindowStart = DateTimeOffset.MinValue;
-                delayedHealCycle = 0;
-                delayedHealAttack = string.Empty;
-                delayedHealAt = DateTimeOffset.MinValue;
-                Duck.SetOrdinarySkillsSuppressed(false);
-
-                while (!Bot.ShouldExit && !Bot.Player.Alive)
-                {
-                    if (Duck.ShouldResetFight(fightAttempt))
-                    {
-                        Duck.StopSkillEngine();
-                        return FightResult.Reset;
-                    }
-
-                    Bot.Sleep(RespawnPollDelay);
-                }
-
-                if (Bot.ShouldExit)
-                    break;
-
-                if (!Duck.IsMonsterAlive(DarkonMapId) && bossObserved)
+                if (Duck.IsMonsterAlive(DarkonMapId))
+                    bossObserved = true;
+                else if (bossObserved)
                     break;
 
                 if (Duck.ShouldResetFight(fightAttempt))
-                {
-                    Duck.StopSkillEngine();
                     return FightResult.Reset;
+
+                if (!Bot.Player.Alive)
+                {
+                    Duck.FileLog($"{playerAlias} died.", LogPrefix);
+                    Core.Logger($"{LogPrefix} {playerAlias} died.");
+                    tauntScheduled = false;
+                    looSkillFourRequested = false;
+                    looExtraHealCycle = 0;
+                    looExtraHealWindowStart = DateTimeOffset.MinValue;
+                    delayedHealCycle = 0;
+                    delayedHealAttack = string.Empty;
+                    delayedHealAt = DateTimeOffset.MinValue;
+                    Duck.SetOrdinarySkillsSuppressed(false);
+
+                    while (!Bot.ShouldExit && !Bot.Player.Alive)
+                    {
+                        if (Duck.ShouldResetFight(fightAttempt))
+                            return FightResult.Reset;
+
+                        Bot.Sleep(RespawnPollDelay);
+                    }
+
+                    if (Bot.ShouldExit)
+                        break;
+
+                    if (!Duck.IsMonsterAlive(DarkonMapId) && bossObserved)
+                        break;
+
+                    if (Duck.ShouldResetFight(fightAttempt))
+                        return FightResult.Reset;
+
+                    Duck.FileLog($"{playerAlias} respawned.", LogPrefix);
+                    Core.Logger($"{LogPrefix} {playerAlias} respawned.");
+
+                    if (!IsInBossRoom())
+                        Core.Jump(BossCell, BossPad);
+
+                    Duck.MaintainTarget(DarkonMapId);
+                    AdvanceDetections(ref nextDetection);
+                    continue;
                 }
 
-                Core.Logger($"{LogPrefix} {playerAlias} respawned.");
-
-                if (!IsInBossRoom())
-                    Core.Jump(BossCell, BossPad);
-
                 Duck.MaintainTarget(DarkonMapId);
-                AdvanceDetections(ref nextDetection);
-                if (handlesAttack2Signals)
-                    AdvanceAttack2Signals(
-                        fightAttempt,
-                        ref nextAttack2Signal
+
+                if (isLordOfOrder)
+                    ReleaseLooSkillFour(
+                        ref looHoldLogged,
+                        ref looSkillFourRequested,
+                        ref looSkillFourReleased
                     );
-                continue;
-            }
 
-            Duck.MaintainTarget(DarkonMapId);
-
-            if (isLordOfOrder)
-                ReleaseLooSkillFour(
-                    ref looHoldLogged,
-                    ref looSkillFourRequested,
-                    ref looSkillFourReleased
-                );
-
-            if (!HandlePacketDetections(
-                fightAttempt,
-                ref nextDetection,
-                ref tauntScheduled,
-                ref scheduledTauntCycle,
-                ref tauntAt,
-                ref looExtraHealCycle,
-                ref looExtraHealWindowStart,
-                ref apExtraHealCycle,
-                ref apExtraHealWindowStart,
-                ref delayedHealCycle,
-                ref delayedHealAttack,
-                ref delayedHealAt
-            ))
-            {
-                Duck.StopSkillEngine();
-                return FightResult.Stopped;
-            }
-
-            if (handlesAttack2Signals)
-                HandleAttack2Signals(
-                    fightAttempt,
-                    ref nextAttack2Signal,
+                if (!HandlePacketDetections(
+                    ref nextDetection,
+                    ref tauntScheduled,
+                    ref scheduledTauntCycle,
+                    ref tauntAt,
                     ref looExtraHealCycle,
                     ref looExtraHealWindowStart,
                     ref delayedHealCycle,
                     ref delayedHealAttack,
                     ref delayedHealAt
+                ))
+                {
+                    return FightResult.Stopped;
+                }
+
+                TryQueueDelayedPacketHeal(
+                    ref delayedHealCycle,
+                    ref delayedHealAttack,
+                    ref delayedHealAt
                 );
 
-            TryQueueDelayedPacketHeal(
-                ref delayedHealCycle,
-                ref delayedHealAttack,
-                ref delayedHealAt
-            );
+                if (isArchPaladin)
+                    HandleArchPaladin(
+                        ref apPhaseThreeConfigured,
+                        ref apSkillThreeBlocked
+                    );
 
-            if (isArchPaladin)
-                HandleArchPaladin(
-                    ref apPhaseThreeConfigured,
-                    ref apSkillThreeBlocked
-                );
+                if (tauntScheduled && DateTimeOffset.Now >= tauntAt)
+                {
+                    Duck.RequestTaunt(DarkonMapId);
+                    Core.Logger($"{LogPrefix} {playerAlias} requested Darkon taunt cycle {scheduledTauntCycle}.");
+                    tauntScheduled = false;
+                }
 
-            if (
-                UsesTestFightBehavior()
-                && IsArchPaladinPlayer()
-            )
-                TryQueueApExtraHeal(
-                    apPhaseThreeConfigured,
-                    ref apExtraHealCycle,
-                    ref apExtraHealWindowStart
-                );
+                if (isLordOfOrder)
+                    TryQueueLooExtraHeal(
+                        ref looExtraHealCycle,
+                        ref looExtraHealWindowStart
+                    );
 
-            if (tauntScheduled && DateTimeOffset.Now >= tauntAt)
-            {
-                Duck.RequestTaunt(DarkonMapId);
-                Core.Logger($"{LogPrefix} {playerAlias} requested Darkon taunt cycle {scheduledTauntCycle}.");
-                tauntScheduled = false;
+                if (isLordOfOrder)
+                    UseLooSkillFourNormally(looSkillFourReleased);
+
+                Bot.Sleep(FightPollDelay);
             }
 
-            if (isLordOfOrder)
-                TryQueueLooExtraHeal(
-                    ref looExtraHealCycle,
-                    ref looExtraHealWindowStart
-                );
+            if (Bot.ShouldExit)
+                return FightResult.Stopped;
 
-            if (isLordOfOrder)
-                UseLooSkillFourNormally(looSkillFourReleased);
-
-            Bot.Sleep(FightPollDelay);
+            return FightResult.Defeated;
         }
-
-        Duck.StopSkillEngine();
-
-        if (Bot.ShouldExit)
-            return FightResult.Stopped;
-
-        Core.Logger($"{LogPrefix} {playerAlias} confirmed Ultra Darkon defeated.");
-        return FightResult.Defeated;
+        finally
+        {
+            Duck.SetOrdinarySkillsSuppressed(false);
+            Duck.StopSkillEngine();
+        }
     }
 
     private bool HandlePacketDetections(
-        int fightAttempt,
         ref int nextDetection,
         ref bool tauntScheduled,
         ref int scheduledTauntCycle,
         ref DateTimeOffset tauntAt,
         ref int looExtraHealCycle,
         ref DateTimeOffset looExtraHealWindowStart,
-        ref int apExtraHealCycle,
-        ref DateTimeOffset apExtraHealWindowStart,
         ref int delayedHealCycle,
         ref string delayedHealAttack,
         ref DateTimeOffset delayedHealAt
@@ -600,49 +548,8 @@ public class UltraDarkonDUCK
         {
             int cycle = nextDetection++;
 
-            if (
-                UsesTestFightBehavior()
-                && IsArchPaladinPlayer()
-            )
+            if (isArchPaladin)
             {
-                SchedulePacketHeal(
-                    "Attack2",
-                    cycle,
-                    ref delayedHealCycle,
-                    ref delayedHealAttack,
-                    ref delayedHealAt
-                );
-                ScheduleApExtraHeal(
-                    cycle,
-                    ref apExtraHealCycle,
-                    ref apExtraHealWindowStart
-                );
-                continue;
-            }
-
-            if (
-                !UsesDefaultFightRoles()
-                && !UsesTestFightBehavior()
-                && Duck.IsArmyPlayer(1)
-            )
-            {
-                string signal = GetAttack2Signal(fightAttempt, cycle);
-                if (!Duck.SendArmySignal(signal))
-                {
-                    Core.Logger(
-                        $"{LogPrefix} playerOne could not send {signal}.",
-                        "HandlePacketDetections",
-                        messageBox: true,
-                        stopBot: true
-                    );
-                    return false;
-                }
-
-                Core.Logger($"{LogPrefix} playerOne sent {signal}.");
-                continue;
-            }
-
-            if (IsArchPaladinPlayer())
                 SchedulePacketHeal(
                     "Attack3",
                     cycle,
@@ -650,11 +557,11 @@ public class UltraDarkonDUCK
                     ref delayedHealAttack,
                     ref delayedHealAt
                 );
+            }
 
             if (isTaunter)
             {
-                bool openingOwner = IsOpeningTauntOwner();
-                bool ownsCycle = openingOwner
+                bool ownsCycle = isOpeningTauntOwner
                     ? cycle % 2 == 1
                     : cycle % 2 == 0;
 
@@ -663,23 +570,12 @@ public class UltraDarkonDUCK
                     scheduledTauntCycle = cycle;
                     tauntAt = DateTimeOffset.Now.AddMilliseconds(TauntDelay);
                     tauntScheduled = true;
+                    Duck.FileLog($"{playerAlias} detected owned Attack3 cycle {cycle}.", LogPrefix);
                     Core.Logger($"{LogPrefix} {playerAlias} detected owned Attack3 cycle {cycle}.");
                 }
             }
-            if (UsesTestFightBehavior() && Duck.IsArmyPlayer(4))
-            {
-                if (cycle == 1 || cycle % 2 == 0)
-                    SchedulePacketHeal(
-                        "Attack3",
-                        cycle,
-                        ref delayedHealCycle,
-                        ref delayedHealAttack,
-                        ref delayedHealAt
-                    );
-            }
-            else if (
-                isLordOfOrder
-            )
+
+            if (isLordOfOrder)
             {
                 SchedulePacketHeal(
                     "Attack2",
@@ -697,100 +593,6 @@ public class UltraDarkonDUCK
         }
 
         return true;
-    }
-
-    private void HandleAttack2Signals(
-        int fightAttempt,
-        ref int nextSignal,
-        ref int extraHealCycle,
-        ref DateTimeOffset extraHealWindowStart,
-        ref int delayedHealCycle,
-        ref string delayedHealAttack,
-        ref DateTimeOffset delayedHealAt
-    )
-    {
-        while (
-            Duck.HasArmySignal(
-                GetAttack2Signal(fightAttempt, nextSignal),
-                1
-            )
-        )
-        {
-            SchedulePacketHeal(
-                "Attack2",
-                nextSignal,
-                ref delayedHealCycle,
-                ref delayedHealAttack,
-                ref delayedHealAt
-            );
-            ScheduleLooExtraHeal(
-                nextSignal,
-                ref extraHealCycle,
-                ref extraHealWindowStart
-            );
-
-            nextSignal++;
-        }
-    }
-
-    private void ScheduleApExtraHeal(
-        int cycle,
-        ref int extraHealCycle,
-        ref DateTimeOffset extraHealWindowStart
-    )
-    {
-        extraHealCycle = cycle;
-        extraHealWindowStart = DateTimeOffset.Now.AddMilliseconds(
-            ApExtraHealWindowStartDelay
-        );
-    }
-
-    private void TryQueueApExtraHeal(
-        bool phaseThreeConfigured,
-        ref int cycle,
-        ref DateTimeOffset windowStart
-    )
-    {
-        if (cycle <= 0)
-            return;
-
-        DateTimeOffset now = DateTimeOffset.Now;
-        if (now < windowStart)
-            return;
-
-        if (phaseThreeConfigured)
-        {
-            int phaseThreeCycle = cycle;
-            cycle = 0;
-            windowStart = DateTimeOffset.MinValue;
-            Duck.RequestPrioritySkill(2);
-            Core.Logger($"{LogPrefix} {playerAlias} queued its mandatory Phase 3 midpoint heal for cycle {phaseThreeCycle}.");
-            return;
-        }
-
-        if (
-            now >= windowStart.AddMilliseconds(
-                ApExtraHealWindowDuration
-            )
-        )
-        {
-            cycle = 0;
-            windowStart = DateTimeOffset.MinValue;
-            return;
-        }
-
-        if (
-            !Bot.Player.Alive
-            || Duck.HasPendingPrioritySkill()
-            || !Bot.Skills.CanUseSkill(2)
-        )
-            return;
-
-        int scheduledCycle = cycle;
-        cycle = 0;
-        windowStart = DateTimeOffset.MinValue;
-        Duck.RequestPrioritySkill(2);
-        Core.Logger($"{LogPrefix} {playerAlias} queued its optional Attack2 heal for cycle {scheduledCycle}.");
     }
 
     private void ScheduleLooExtraHeal(
@@ -882,7 +684,7 @@ public class UltraDarkonDUCK
     )
     {
         if (
-            !IsArchPaladinPlayer()
+            !isArchPaladin
             || !Bot.Player.Alive
             || !Bot.Player.HasTarget
             || Bot.Player.Target?.MapID != DarkonMapId
@@ -1017,28 +819,9 @@ public class UltraDarkonDUCK
             nextDetection++;
     }
 
-    private void AdvanceAttack2Signals(
-        int fightAttempt,
-        ref int nextSignal
-    )
-    {
-        while (
-            Duck.HasArmySignal(
-                GetAttack2Signal(fightAttempt, nextSignal),
-                1
-            )
-        )
-            nextSignal++;
-    }
-
-    private static string GetAttack2Signal(
-        int fightAttempt,
-        int cycle
-    ) =>
-        $"DARKON_ATTACK2_{fightAttempt}_{cycle}";
-
     private bool HandleFightReset(int fightAttempt)
     {
+        Duck.FileLog($"{playerAlias} executing fight reset for attempt {fightAttempt}.", LogPrefix);
         Duck.StopPacketDetector();
         Duck.StopSkillEngine();
         Bot.Combat.CancelTarget();
@@ -1060,8 +843,8 @@ public class UltraDarkonDUCK
             Core.Logger(
                 $"{LogPrefix} {playerAlias} could not reach the safe room after reset.",
                 "HandleFightReset",
-                messageBox: true,
-                stopBot: true
+                messageBox: !masterMode,
+                stopBot: !masterMode
             );
             return false;
         }
@@ -1071,20 +854,7 @@ public class UltraDarkonDUCK
 
     private void StopArmyAfterFailedAttempts()
     {
-        if (masterMode)
-        {
-            if (Duck.IsArmyPlayer(1))
-                Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
-            else
-                Duck.SyncArmy("STOP_CHECK");
-
-            Core.Logger(
-                $"{LogPrefix} failed after {MaxFightAttempts} fight attempts.",
-                "RunFightAttempts"
-            );
-            return;
-        }
-
+        Duck.FileLog($"{playerAlias} failed after {MaxFightAttempts} fight attempts.", LogPrefix);
         if (Duck.IsArmyPlayer(1))
             Duck.StopArmySync("ATTEMPTS_EXHAUSTED");
         else
@@ -1093,68 +863,28 @@ public class UltraDarkonDUCK
         Core.Logger(
             $"{LogPrefix} failed after {MaxFightAttempts} fight attempts.",
             "RunFightAttempts",
-            messageBox: true,
-            stopBot: true
+            messageBox: !masterMode,
+            stopBot: !masterMode
         );
     }
 
     private bool IsInSafeRoom() =>
-        Bot.Player.Cell == SafeCell && Bot.Player.Pad == SafePad;
-
-    
-
-    
+        string.Equals(Bot.Player.Cell, SafeCell, StringComparison.OrdinalIgnoreCase);
 
     private bool IsInBossRoom() =>
-        Bot.Player.Cell == BossCell && Bot.Player.Pad == BossPad;
-
-    private bool UsesDefaultFightRoles() =>
-        armyComposition == ArmyComposition.Default
-        || armyComposition == ArmyComposition.Test
-        || armyComposition == ArmyComposition.Test2;
-
-    private bool UsesTestFightBehavior() =>
-        armyComposition == ArmyComposition.Test
-        || armyComposition == ArmyComposition.Test2
-        || armyComposition == ArmyComposition.Pay2Win;
-
-    private bool IsTaunter() => isTaunter;
-
-    private bool IsArchPaladinPlayer() => isArchPaladin;
-
-    private bool IsOpeningTauntOwner() => isOpeningTauntOwner;
+        string.Equals(Bot.Player.Cell, BossCell, StringComparison.OrdinalIgnoreCase);
 
     private bool Sync(string step)
     {
+        Duck.FileLog($"{playerAlias} syncing on {step}...", LogPrefix);
         Core.Logger($"{LogPrefix} {playerAlias} entering {step}.");
 
-        if (!Duck.SyncArmy(step))
+        bool success = Duck.SyncArmy(step);
+        Duck.FileLog($"{playerAlias} sync {step} => {(success ? "SUCCESS" : "TIMEOUT/FAILED")}", LogPrefix);
+        if (!success)
             return false;
 
         Core.Logger($"{LogPrefix} {playerAlias} continued from {step}.");
         return true;
-    }
-
-    private void StopArmy()
-    {
-        if (Duck.IsArmyPlayer(1))
-        {
-            Bot.Sleep(2000);
-
-            if (Bot.ShouldExit)
-                return;
-
-            if (Duck.StopArmySync("COMPLETE"))
-                Core.Logger($"{LogPrefix} playerOne published COMPLETE.");
-            else
-                Core.Logger($"{LogPrefix} playerOne could not publish COMPLETE.");
-
-            return;
-        }
-
-        if (Duck.SyncArmy("STOP_CHECK"))
-            Core.Logger($"{LogPrefix} {playerAlias} unexpectedly passed STOP_CHECK.");
-        else
-            Core.Logger($"{LogPrefix} {playerAlias} detected COMPLETE.");
     }
 }
